@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using Vecto.Core;
 
 namespace Vecto.App;
 
@@ -23,16 +24,33 @@ public sealed class AppSettings
 
     public static AppSettings Load()
     {
+        AppSettings settings;
         try
         {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new();
+            settings = File.Exists(FilePath)
+                ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new()
+                : new();
         }
         catch
         {
             // corrupt or unreadable settings must never block startup
+            return new();
         }
-        return new();
+        settings.Sanitize();
+        return settings;
+    }
+
+    /// <summary>Clamps every field to a valid range so a corrupt settings file can never
+    /// break startup (e.g. a negative window size throwing in the MainWindow constructor).</summary>
+    void Sanitize()
+    {
+        ColorCount = Math.Clamp(ColorCount, 2, 32);                       // matches the UI slider
+        if (!Enum.IsDefined(typeof(ImageStyle), StyleIndex)) StyleIndex = 0;
+        if (!Enum.IsDefined(typeof(DetailLevel), DetailIndex)) DetailIndex = 1;
+        if (double.IsNaN(WindowWidth) || double.IsInfinity(WindowWidth)) WindowWidth = 1280;
+        if (double.IsNaN(WindowHeight) || double.IsInfinity(WindowHeight)) WindowHeight = 780;
+        WindowWidth = Math.Clamp(WindowWidth, 320, 16384);
+        WindowHeight = Math.Clamp(WindowHeight, 240, 16384);
     }
 
     public void Save()

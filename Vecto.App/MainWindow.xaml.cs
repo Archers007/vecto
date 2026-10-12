@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -76,13 +77,35 @@ public partial class MainWindow : Window
 
     void OnPaste(object sender, RoutedEventArgs e)
     {
-        if (!Clipboard.ContainsImage())
+        BitmapSource? bmp = null;
+        try
         {
-            ViewModel.Status = "Clipboard has no image.";
+            if (!Clipboard.ContainsImage())
+            {
+                ViewModel.Status = "Clipboard has no image.";
+                return;
+            }
+            var img = Clipboard.GetImage();
+            if (img != null) bmp = BitmapFrame.Create(img);
+        }
+        catch (Exception ex) when (ex is COMException or ExternalException)
+        {
+            ViewModel.Status = "Clipboard is busy — try again in a moment.";
             return;
         }
-        var img = Clipboard.GetImage();
-        if (img != null) ViewModel.LoadPastedBitmap(BitmapFrame.Create(img));
+        if (bmp == null)
+        {
+            ViewModel.Status = "Clipboard has no usable image.";
+            return;
+        }
+        try
+        {
+            ViewModel.LoadPastedBitmap(bmp);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Vecto", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     System.Windows.Point _panStart;
@@ -120,7 +143,15 @@ public partial class MainWindow : Window
         if (!ViewModel.HasResult) return;
         var dlg = new SaveFileDialog { Filter = "SVG|*.svg", FileName = ViewModel.SuggestedName };
         if (dlg.ShowDialog(this) != true) return;
-        File.WriteAllText(dlg.FileName, ViewModel.BuildSvg());
+        try
+        {
+            File.WriteAllText(dlg.FileName, ViewModel.BuildSvg());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ViewModel.Status = "Could not export: " + ex.Message;
+            return;
+        }
         ViewModel.Status = "Exported " + dlg.FileName;
     }
 
@@ -133,18 +164,34 @@ public partial class MainWindow : Window
             FileName = Path.ChangeExtension(ViewModel.SuggestedName, ".png"),
         };
         if (dlg.ShowDialog(this) != true) return;
-        var bmp = VectorRendering.ToBitmapSource(Rasterizer.Render(doc));
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(bmp));
-        using (var stream = File.Create(dlg.FileName))
-            encoder.Save(stream);
+        try
+        {
+            var bmp = VectorRendering.ToBitmapSource(Rasterizer.Render(doc));
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            using (var stream = File.Create(dlg.FileName))
+                encoder.Save(stream);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ViewModel.Status = "Could not export: " + ex.Message;
+            return;
+        }
         ViewModel.Status = "Exported " + dlg.FileName;
     }
 
     void OnCopySvg(object sender, RoutedEventArgs e)
     {
         if (!ViewModel.HasResult) return;
-        Clipboard.SetText(ViewModel.BuildSvg());
+        try
+        {
+            Clipboard.SetText(ViewModel.BuildSvg());
+        }
+        catch (Exception ex) when (ex is COMException or ExternalException)
+        {
+            ViewModel.Status = "Clipboard is busy — try again in a moment.";
+            return;
+        }
         ViewModel.Status = "SVG copied to clipboard.";
     }
 
