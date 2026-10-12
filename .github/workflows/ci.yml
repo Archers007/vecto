@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ dev, main ]
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK (version pinned by global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build (no audit override, CI must catch dependency advisories)
+        run: dotnet build Vecto.sln -c Release
+
+      - name: Test
+        run: dotnet test Vecto.Tests -c Release --no-build
+
+      - name: CLI smoke - generate sample images
+        run: ./Vecto.Cli/bin/Release/net8.0/vecto.exe samples _bench/check
+
+      - name: CLI smoke - trace samples with planarity check
+        run: ./Vecto.Cli/bin/Release/net8.0/vecto.exe trace _bench/check/crisp.png _bench/check/blended.png _bench/check/transparent.png --out-dir _bench/check/out --check
