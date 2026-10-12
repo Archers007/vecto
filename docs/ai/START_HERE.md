@@ -9,6 +9,8 @@ no overlaps between shapes. C# / .NET 8 / WPF.
 https://apps.microsoft.com/detail/9PM61P4NC8J2) and free/open-source on GitHub Releases;
 product site is Store-first at https://danielmevit.github.io/vecto/ (`site/`, deploys from
 `main`). Full snapshot in `STATUS.md`.
+**2026-10-12 review → `docs/ai/reviews/2026-10-12-review.md`:** the CLI/test build is broken by
+ImageSharp advisories (blocks Store builds too); fix plan and owner decisions are there.
 **Current priority:** (1) in-app "rate on the Store" review prompt — post-launch, highest
 leverage (see STATUS.md); (2) sub-pixel junction/corner relaxation — top engine-quality
 lever, see ROADMAP; (3) Phase 4 UX: palette editor + tracing wizard; plus tuning-backlog
