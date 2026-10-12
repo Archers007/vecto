@@ -134,7 +134,7 @@ internal static class Program
                 Console.WriteLine("segmentation -> " + segPng);
             }
             if (stats) PrintStats(res);
-            if (check && !PlanarityCheck(res)) allPlanar = false;
+            if (check && !PlanarityCheck(res, img)) allPlanar = false;
         }
         return allPlanar ? 0 : 2;
     }
@@ -268,12 +268,17 @@ internal static class Program
 
     /// <summary>
     /// Planarity self-check: with shared boundaries the region areas must tile the opaque
-    /// canvas, so their flattened sum matching the raster pixel count proves no gaps/overlaps.
+    /// canvas. Expected coverage is measured on the INPUT image (alpha >= 128, matching
+    /// Segmenter.OpaqueThreshold), so pixels silently deleted by absorption are caught
+    /// instead of being baked into the baseline.
     /// </summary>
-    static bool PlanarityCheck(TraceResult res)
+    static bool PlanarityCheck(TraceResult res, RasterImage input)
     {
         double vector = res.Document.Regions.Sum(RegionArea);
-        double raster = res.Document.Palette.Sum(p => (long)p.PixelCount);
+        var px = input.Pixels;
+        double raster = 0;
+        for (int i = 3; i < px.Length; i += 4)
+            if (px[i] >= 128) raster++;
         double deviation = raster == 0 ? 0 : Math.Abs(vector - raster) / raster;
         bool ok = deviation <= 0.02;
         Console.WriteLine(FormattableString.Invariant(
