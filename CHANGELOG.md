@@ -1,5 +1,15 @@
 # Changelog — Vecto
 
+## Unreleased
+
+### Engine: no more holes eaten into the edge of opaque images (VEC-03)
+- Small-region cleanup used to treat the area outside the image as transparency. On fully opaque
+  images (scans, JPEGs, photos) that deleted specks along the border and cut notches into the
+  edge — a 1-px speck in a corner left a transparent bite, and noisy photos lost up to ~5% of
+  their border pixels. Out-of-image neighbours are now ignored, so a speck merges into the colour
+  next to it. `vecto trace --check` now measures coverage against the input's opaque pixels, so
+  it can no longer pass when pixels were silently deleted. Two regression tests pin it.
+
 ## v0.4.2 — 2026-07-19
 
 ### Engine: sub-pixel corner relocation + angle snapping
