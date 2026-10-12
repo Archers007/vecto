@@ -17,6 +17,15 @@
   message in the status line; a file that cannot be opened shows a warning and leaves the current
   image and result untouched; a damaged settings file can no longer stop the window from opening.
 
+### Engine: cleaner JPEG traces — duplicate colours merged (VEC-08b)
+- JPEG noise could leave two palette entries that end up almost the same colour (#020202 and
+  #040404). Each flat shape then traced as a patchwork of near-identical pieces: the Korea flag
+  JPEG came out with 1,566 nodes. After the palette is finalised, colours closer than a small
+  Oklab distance are now merged and the image is relabelled. Korea flag 1,566 → 578 nodes,
+  scissors icon 432 → 208, camera emoji 298 → 236; across the 18-image JPEG test set nodes drop
+  17% on average and colour accuracy improves slightly. Clean and small inputs are unchanged;
+  "exact palette" mode is untouched. One regression test pins it.
+
 ### Engine: no more holes eaten into the edge of opaque images (VEC-03)
 - Small-region cleanup used to treat the area outside the image as transparency. On fully opaque
   images (scans, JPEGs, photos) that deleted specks along the border and cut notches into the
