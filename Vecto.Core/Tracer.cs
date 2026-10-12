@@ -77,6 +77,8 @@ public static class Tracer
         int minArea = Math.Min(p.MinRegionArea, Math.Max(1, opaque / 4));
         Segmenter.AbsorbSmallRegions(labels, w, h, minArea, ct);
         var palette = CompactPalette(img, labels, centers.Length);
+        if (!p.ExactPalette)
+            palette = MergeSimilarDisplays(img, labels, palette, w, h, minArea, ct);
         var seg = Segmenter.Components(labels, w, h);
         long segmentMs = sw.ElapsedMilliseconds;
 
@@ -186,6 +188,53 @@ public static class Tracer
             }
         }
         return segs;
+    }
+
+    /// <summary>
+    /// JPEG ringing can split one source colour into two palette entries whose DISPLAY
+    /// colours are near-identical (e.g. #020202 and #040404): the ringing cluster sits
+    /// farther than MergeThreshold from black, so k-means keeps it, and CompactPalette
+    /// then averages both entries back to the source colour. Nothing merges them after
+    /// that, so every flat area becomes a mosaic of near-identical regions. Here entries
+    /// whose display colours are within <see cref="DisplayMergeThreshold"/> Oklab are
+    /// united (smaller into larger), leftover specks are absorbed, and the compact
+    /// palette is recomputed. Exact palettes are verbatim by design and skip this.
+    /// </summary>
+    const double DisplayMergeThreshold = 0.05;
+
+    static List<PaletteEntry> MergeSimilarDisplays(
+        RasterImage img, int[] labels, List<PaletteEntry> palette, int w, int h, int minArea, CancellationToken ct)
+    {
+        int n = palette.Count;
+        if (n < 2) return palette;
+        var lab = new Lab[n];
+        for (int c = 0; c < n; c++)
+            lab[c] = Oklab.FromRgb(palette[c].Color.R, palette[c].Color.G, palette[c].Color.B);
+        double t2 = DisplayMergeThreshold * DisplayMergeThreshold;
+        var parent = new int[n];
+        var size = new long[n];
+        for (int c = 0; c < n; c++) { parent[c] = c; size[c] = palette[c].PixelCount; }
+        int Root(int x)
+        {
+            while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+            return x;
+        }
+        bool merged = false;
+        for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++)
+                if (Oklab.DistSq(lab[i], lab[j]) <= t2)
+                {
+                    int ri = Root(i), rj = Root(j);
+                    if (ri == rj) continue;
+                    if (size[ri] >= size[rj]) { parent[rj] = ri; size[ri] += size[rj]; }
+                    else { parent[ri] = rj; size[rj] += size[ri]; }
+                    merged = true;
+                }
+        if (!merged) return palette;
+        for (int i = 0; i < labels.Length; i++)
+            if (labels[i] >= 0) labels[i] = Root(labels[i]);
+        Segmenter.AbsorbSmallRegions(labels, w, h, minArea, ct);
+        return CompactPalette(img, labels, n);
     }
 
     /// <summary>
