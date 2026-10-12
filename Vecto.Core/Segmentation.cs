@@ -53,7 +53,10 @@ internal static class Segmenter
     /// <summary>
     /// Repeatedly relabels regions smaller than <paramref name="minArea"/> to the neighbor
     /// they share the longest border with — this is what eats anti-aliasing fringes and dust.
-    /// A merge target can be transparency (-1), which deletes the speck.
+    /// A merge target can be transparency (-1), which deletes the speck — but only when the
+    /// region genuinely borders transparent pixels: out-of-bounds neighbors are skipped, so
+    /// the image edge is never mistaken for transparency. A region with no in-bounds border
+    /// at all (e.g. it covers the whole image) falls back to -1.
     /// </summary>
     public static void AbsorbSmallRegions(int[] labels, int w, int h, int minArea, CancellationToken ct)
     {
@@ -89,7 +92,8 @@ internal static class Segmenter
 
                     void Tally(int j, bool inBounds)
                     {
-                        int neighbor = inBounds ? regionId[j] : -1;
+                        if (!inBounds) return;
+                        int neighbor = regionId[j];
                         if (neighbor == r) return;
                         border[neighbor] = border.GetValueOrDefault(neighbor) + 1;
                     }

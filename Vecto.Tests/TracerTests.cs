@@ -229,6 +229,31 @@ public class TracerTests
     }
 
     [Fact]
+    public void OpaqueCornerSpeck_AbsorbedIntoNeighbor_NotIntoImageEdge()
+    {
+        // regression: out-of-bounds neighbours were tallied as transparency, so a border
+        // speck on an opaque image was deleted, cutting a notch into the image edge
+        var img = Make(50, 50, (x, y) => x == 0 && y == 0 ? Red : White);
+        var res = Tracer.Trace(img, Polygons());
+        Assert.All(res.LabelMap, l => Assert.True(l >= 0, "opaque input must not gain transparent labels"));
+        Assert.Single(res.Document.Regions);
+        Assert.Equal(50 * 50, res.Document.Regions[0].Area);
+        Assert.Equal(50 * 50, DocArea(res.Document), 3);
+    }
+
+    [Fact]
+    public void OpaqueNoise_NoBorderErosion_AreasTileCanvas()
+    {
+        // regression: opaque noise used to lose up to ~5% of its border pixels to
+        // phantom transparency, cascading pass after pass
+        var rnd = new Random(1234);
+        var img = Make(100, 100, (_, _) => new Rgba32((byte)rnd.Next(256), (byte)rnd.Next(256), (byte)rnd.Next(256), 255));
+        var res = Tracer.Trace(img, new TraceOptions { Style = ImageStyle.Photo });
+        Assert.All(res.LabelMap, l => Assert.True(l >= 0, "opaque input must not gain transparent labels"));
+        Assert.Equal(100 * 100, res.Document.Regions.Sum(r => (long)r.Area));
+    }
+
+    [Fact]
     public void CrispImage_PaletteIsExact()
     {
         var colors = new[] { White, Red, Blue, Green, Black };
