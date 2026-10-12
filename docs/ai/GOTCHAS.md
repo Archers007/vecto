@@ -11,9 +11,20 @@
 - `git config core.filemode false` is set — don't "fix" phantom mode diffs.
 
 ## Licensing / dependencies
-- **SixLabors.ImageSharp must stay on 3.1.x** (`Version="3.1.*"` in Vecto.Cli.csproj).
-  The 4.x line fails the build outright without a paid license key. If this ever becomes a
-  problem, the fallback is System.Drawing.Common (Windows-only, fine for this app).
+- **SixLabors.ImageSharp is pinned to exactly 4.1.3** in Vecto.Cli.csproj — no floating
+  wildcard (a floating `3.1.*` is how five advisories landed with no commit). ImageSharp 4
+  validates a licence at build time: a free, assembly-scoped **community key** for the
+  assembly `vecto` is committed at `Vecto.Cli/sixlabors.lic` (Six Labors allows committing
+  an assembly-scoped community key to a public repository). **Release builds fail without
+  a valid key; Debug builds only warn.**
+- The key **expires 2028-01-10** — renew in the final 90 days (from ~2027-10-12) at
+  https://licensing.sixlabors.com with the same email and the exact assembly name `vecto`.
+  Renaming the CLI's `AssemblyName` requires a new key. Exactly one `sixlabors.lic` may
+  live in the repo ("Multiple Six Labors license files found" is a build error).
+- Redistributed CLI binaries must carry ImageSharp's licence text —
+  `THIRD-PARTY-NOTICES.md` at the repo root (Six Labors Split License, Apache-2.0 terms
+  for open-source use). The weekly CI run (`.github/workflows/ci.yml`, NuGet audit ON)
+  catches future advisories.
 - Vector Magic's sample images (`C:\Program Files\Vector Magic\Samples`) are licensed
   sample content: fine for local benchmarking in `_bench/` (gitignored), **never commit them**.
 

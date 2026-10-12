@@ -5,8 +5,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- keep on 3.1.x: the 4.x line requires a paid license key at build time -->
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.*" />
+    <!-- 4.x validates the community licence at build time; key: sixlabors.lic in this project dir -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.3" />
   </ItemGroup>
 
   <PropertyGroup>

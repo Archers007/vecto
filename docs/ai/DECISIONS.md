@@ -33,7 +33,10 @@ formulation reduces to a closed-form 2×2 solve per segment, so plain doubles su
 
 **ImageSharp only in Cli/Tests, WPF codecs in App, Core dependency-free.**
 Core takes raw RGBA buffers (`RasterImage`) so the engine stays portable and testable.
-ImageSharp is pinned to 3.1.x — the 4.x line requires a paid license key at build time.
+ImageSharp is pinned to exactly **4.1.3** (owner decision 2026-10-12, after five unpatched
+advisories on the floating 3.1.x line). The free, assembly-scoped community key for the
+`vecto` assembly is committed at `Vecto.Cli/sixlabors.lic` — licence mechanics, renewal
+and constraints are in GOTCHAS.md.
 
 **Culture-invariant output by construction.** All numeric formatting in the SVG writer and
 CLI goes through InvariantCulture; a de-DE test guards it (comma decimals would silently

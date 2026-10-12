@@ -20,6 +20,7 @@ Point-in-time status for any agent picking up Vecto. Living orientation is in
 - Engine: sub-pixel junction/corner relaxation (top quality lever — see ROADMAP); Phase 4 UX (palette editor, tracing wizard).
 
 ## Known issues
+- The **2026-10-07 build break** (five unpatched ImageSharp 3.1.x advisories via a floating version) is **resolved** (2026-10-12, VEC-01): the CLI pins ImageSharp 4.1.3 with the free community key committed at `Vecto.Cli/sixlabors.lic`; the weekly CI audit catches future advisories.
 - The **v0.4.1** portable ZIP on GitHub Releases is broken: a case-insensitive filename collision shipped the CLI (`vecto.exe`) in place of the app. Fixed in **v0.4.2** (CLI now lives in `cli\`). The v0.4.1 release asset itself is unchanged.
 - Engine limits (ROADMAP): junctions where 3+ regions meet still pin to the pixel lattice; chamfered-AA corners can escape k=3 corner detection.
 
