@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Build: fixed and future-proofed (VEC-01, VEC-02)
+- The build broke on 2026-10-07 when five security advisories hit the image library the `vecto` CLI
+  used (SixLabors.ImageSharp 3.1.x, pulled in through a floating version). The CLI now uses
+  **ImageSharp 4.1.3**, pinned exactly, with Six Labors' free open-source community licence key
+  (`Vecto.Cli/sixlabors.lic`, renew by 2028-01-10). The desktop app never used it. Store packages
+  can be built again. `THIRD-PARTY-NOTICES.md` carries ImageSharp's licence for the CLI downloads.
+- New CI builds and tests every push and pull request, and once a week, so an advisory that lands
+  with no code change turns it red instead of going unnoticed. The SDK is pinned (`global.json`) and
+  the test packages are current.
+
+### App: everyday failures explained instead of the crash dialog (VEC-04b)
+- Exporting into a read-only or locked location, a busy clipboard or an empty paste now show a short
+  message in the status line; a file that cannot be opened shows a warning and leaves the current
+  image and result untouched; a damaged settings file can no longer stop the window from opening.
+
 ### Engine: no more holes eaten into the edge of opaque images (VEC-03)
 - Small-region cleanup used to treat the area outside the image as transparency. On fully opaque
   images (scans, JPEGs, photos) that deleted specks along the border and cut notches into the

@@ -16,7 +16,7 @@
     <DisplayName>Vecto - Image to Vector</DisplayName>
     <PublisherDisplayName>Vecto Team</PublisherDisplayName>
     <Logo>assets\msix\StoreLogo.png</Logo>
-    <Description>Trace PNG and JPG images into clean, editable SVG — exact circles, true straight lines, zero gaps between shapes. Free, offline, open source.</Description>
+    <Description>Trace PNG and JPG images into clean, editable SVG — exact circles, true straight lines, zero gaps between shapes. One-time purchase, offline.</Description>
   </Properties>
 
   <Dependencies>
