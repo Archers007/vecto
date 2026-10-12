@@ -23,7 +23,7 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Build (no audit override: CI must catch dependency advisories)
+      - name: Build (no audit override, CI must catch dependency advisories)
         run: dotnet build Vecto.sln -c Release
 
       - name: Test
