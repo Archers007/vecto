@@ -169,11 +169,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public string WindowTitle => _sourcePath == null ? "Vecto" : $"Vecto — {Path.GetFileName(_sourcePath)}";
 
-    public void LoadPastedBitmap(BitmapSource bmp)
-    {
-        _sourcePath = null;
-        LoadBitmap(bmp);
-    }
+    public void LoadPastedBitmap(BitmapSource bmp) => LoadBitmap(bmp, null);
 
     public void LoadFile(string path)
     {
@@ -183,15 +179,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         bmp.UriSource = new Uri(Path.GetFullPath(path));
         bmp.EndInit();
         bmp.Freeze();
-        _sourcePath = path;
-        LoadBitmap(bmp);
+        LoadBitmap(bmp, path);
     }
 
-    public void LoadBitmap(BitmapSource bmp)
+    public void LoadBitmap(BitmapSource bmp, string? path = null)
     {
+        // convert first: if this throws, the previous image, file name and trace result stay untouched
+        var raster = ImageInterop.ToRaster(bmp);
         if (bmp.CanFreeze) bmp.Freeze();
+        _sourcePath = path;
+        _raster = raster;
         SourceBitmap = bmp;
-        _raster = ImageInterop.ToRaster(bmp);
         Raise(nameof(WindowTitle));
         FitRequested?.Invoke();
         Retrace(immediate: true);
