@@ -149,4 +149,39 @@ public class FringeTests
             $"no black region of width 4 ± 0.25 px; black areas: " +
             string.Join(", ", doc.Regions.Where(r => r.PaletteIndex == black).Select(r => r.Area)));
     }
+
+    /// <summary>
+    /// VEC-21: relabelling the fringes into a colour must not wash out its palette colour.
+    /// Tiny 2x2 ink dots each carry a 12-px blend ring (60% black, so the sRGB side decision
+    /// sends it to black); relabelled into black, the rings swamp the few flat black pixels,
+    /// the palette colour falls back to the all-pixel mean and the ink turns grey — like
+    /// small bold text in a JPEG. The ink must stay near-black.
+    /// </summary>
+    [Fact]
+    public void FringeRelabelKeepsSmallInkDark()
+    {
+        int w = 80, h = 64;
+        var ring = new Rgba32(102, 102, 102, 255);
+        var img = new RasterImage(w, h);
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                img.SetPixel(x, y, White);
+        for (int gy = 0; gy < 7; gy++)          // 70 dots on a 6-px grid
+            for (int gx = 0; gx < 10; gx++)
+            {
+                int x0 = 2 + gx * 6, y0 = 2 + gy * 6;
+                for (int y = y0 - 1; y <= y0 + 2; y++)
+                    for (int x = x0 - 1; x <= x0 + 2; x++)
+                        img.SetPixel(x, y, x >= x0 && x <= x0 + 1 && y >= y0 && y <= y0 + 1 ? Black : ring);
+            }
+        for (int y = 50; y <= 54; y++)          // a solid 5x5 black block: 9 flat black pixels
+            for (int x = 66; x <= 70; x++)
+                img.SetPixel(x, y, Black);
+        for (int y = 44; y <= 53; y++)          // keeps grey in the palette, so the rings are labelled grey
+            for (int x = 4; x <= 13; x++)
+                img.SetPixel(x, y, SolidGrey);
+        var doc = Tracer.Trace(img, Options(3)).Document;
+        int darkest = doc.Palette.Select(e => (int)e.Color.R).Min();
+        Assert.True(darkest < 30, $"darkest palette colour {darkest} (ink washed out by its fringe)");
+    }
 }

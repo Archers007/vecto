@@ -68,7 +68,8 @@ internal static class Segmenter
     /// Oklab midpoint sits near sRGB 100, so an Oklab-side decision sends partly-dark edge
     /// pixels (sRGB 100–128) to the light side and thin dark lines lose ink. Reads from a
     /// snapshot of the labels and writes into <paramref name="labels"/>, so the pass is
-    /// deterministic under Parallel.For.
+    /// deterministic under Parallel.For. Relabels into a colour are dropped when they would
+    /// wash out its palette colour (see <see cref="WashesOut"/>).
     /// </summary>
     public static void RelabelFringe(RasterImage img, int[] labels, Lab[] centers, int w, int h, CancellationToken ct)
     {
@@ -90,6 +91,8 @@ internal static class Segmenter
             rgb[c * 3 + 2] = b;
         }
         int span = 2 * FringeRadius + 1;
+        var to = new int[labels.Length];
+        Array.Fill(to, -1);
         Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, [MethodImpl(MethodImplOptions.AggressiveOptimization)] (y) =>
         {
             Span<int> nb = stackalloc int[span * span];
@@ -142,9 +145,41 @@ internal static class Segmenter
                         }
                     }
                 if (bestL >= 0 && bestR <= maxR2 && bestR < dc)
-                    labels[i] = bestL;
+                    to[i] = bestL;
             }
         });
+        var blocked = WashesOut(img, src, to, nc, w);
+        for (int i = 0; i < to.Length; i++)
+            if (to[i] >= 0 && !blocked[to[i]])
+                labels[i] = to[i];
+    }
+
+    /// <summary>
+    /// Per label: would the fringe pixels relabelled into it wash out its palette colour?
+    /// The palette colour is the mean of the label's flat (non-edge) pixels while they make
+    /// up at least 1/50 of it, else the mean of all its pixels (Tracer.CompactPalette).
+    /// Fringe pixels are edge pixels, so on small bold text — where the anti-aliasing ring
+    /// outnumbers the glyph interiors — relabelling the ring into the ink pushes the flat
+    /// share under 1/50, the colour falls back to the all-pixel mean and the ink turns grey
+    /// (JPEG chart title: #101729 → #323743). Such labels keep their fringes as they were.
+    /// </summary>
+    static bool[] WashesOut(RasterImage img, int[] src, int[] to, int nc, int w)
+    {
+        var count = new int[nc];
+        var flat = new int[nc];
+        var added = new int[nc];
+        for (int i = 0; i < src.Length; i++)
+        {
+            int l = src[i];
+            if (l < 0) continue;
+            count[l]++;
+            if (!PaletteBuilder.IsEdge(img, i % w, i / w)) flat[l]++;
+            if (to[i] >= 0) added[to[i]]++;
+        }
+        var blocked = new bool[nc];
+        for (int l = 0; l < nc; l++)
+            blocked[l] = flat[l] >= Math.Max(1, count[l] / 50) && flat[l] < Math.Max(1, (count[l] + added[l]) / 50);
+        return blocked;
     }
 
     /// <summary>Oklab back to sRGB channels in 0–255 (Björn Ottosson's public-domain inverse).</summary>
