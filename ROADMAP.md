@@ -10,6 +10,16 @@
   (`site/`, Astro → GitHub Pages); quick wins 2026-07-19: PNG export, nodes view,
   settings persistence, CLI batch mode
 
+## Next milestone (v0.4.4)
+- **App icon on a solid plate** (owner request 2026-10-13): the current icon is transparent (pixel "V" + thin blue
+  outline strokes) and gets lost on dark taskbars and on blue/accent Start tiles. Put it on a solid rounded plate
+  (keep the pixel-V + vector-outline idea), regenerate EVERY size: `assets/vecto.ico` (16-256 px multi-size),
+  `assets/msix/*` (StoreLogo, Square44x44 incl. targetsize/unplated variants, Square150x150, Wide if added),
+  `assets/Vecto_Logo_1024x1024.png`, site favicon. Check contrast on light, dark and accent backgrounds at 16/24/32 px.
+- Small text in JPEGs (thin letters deform, faint captions vanish) — text-aware tracing.
+- pattern-tiles-style JPEGs: noisy smoothing per chain (fewer passes on curved chains) to recover the last realistic
+  regression vs 0.4.2.
+
 ## Phase 4 — VM-fashion UX
 - Wizard flow: fully-automatic vs basic (image type → detail → colors) vs advanced
 - Palette editor: merge/pick/lock colors, custom palette (engine: PaletteMode.FixedColors)
