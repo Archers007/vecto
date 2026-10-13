@@ -47,6 +47,17 @@ gaps and overlaps that plague most PNG-to-SVG converters.
   tests (exact area preservation, corner exactness, circle accuracy, culture safety).
 - **Headless CLI + benchmark harness** for batch tracing and objective quality measurement.
 
+## Best results — do's and don'ts
+
+Vecto is built for **flat-color graphics**. Know what to feed it:
+
+| Do | Don't |
+|---|---|
+| Logos, icons, badges, stickers, flags | Smooth gradients and soft shadows — they are traced as bands of color |
+| Flat illustrations and cartoon art with clear outlines | Small text — letters can lose their shape; retype text in your vector editor |
+| Clean line drawings and scans of line art | Small or low-resolution images (thumbnails, icons around 128 px) — fine detail is lost |
+| The largest, sharpest version of the image you have (PNG, or a high-quality JPEG) | Photos and painterly art — they come out posterized, not photo-real |
+
 ## Install
 
 ### Option 1 — Download (recommended, no setup)
@@ -86,12 +97,6 @@ After the build:
 **App:** drop / paste (Ctrl+V) / open any PNG, JPG, BMP or GIF → automatic trace →
 export or copy SVG. Transparency is preserved. Tip: feed the highest-resolution image you
 have — trace quality scales with input size.
-
-**Best results:** flat-color graphics — logos, icons, badges, stickers, flags, flat illustrations, clean
-line drawings and scans — at the largest size you have.
-**Not a good fit:** smooth gradients and soft shadows (traced as bands of color), small text (letters
-can lose their shape — retype text in your vector editor), small or low-resolution images (fine detail
-is lost — use the largest version you have), photos and painterly art (posterized).
 
 **CLI:**
 
