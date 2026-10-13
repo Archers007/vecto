@@ -71,7 +71,11 @@ public static class Tracer
         progress?.Invoke("segmentation", 0.25);
         sw.Restart();
         var labels = Segmenter.Label(img, centers, ct);
-        if (!p.ExactPalette)
+        // Texture guard: on continuous-tone inputs (photos, textured art, old scans) the thin
+        // in-between colour bands are real shading, not anti-aliasing fringes, and a high
+        // interior noise share is texture, not JPEG ringing — skip both treatments there.
+        p.Textured = NoiseEstimate.InteriorNoiseShare(img, labels, w, h, ct) >= NoiseEstimate.TexturedShare;
+        if (!p.ExactPalette && !p.Textured)
             Segmenter.RelabelFringe(img, labels, centers, w, h, ct);
         int opaque = 0;
         for (int i = 0; i < labels.Length; i++)
@@ -82,7 +86,7 @@ public static class Tracer
         if (!p.ExactPalette)
             palette = MergeSimilarDisplays(img, labels, palette, w, h, minArea, ct);
         p.NoiseShare = NoiseEstimate.InteriorNoiseShare(img, labels, w, h, ct);
-        if (p.NoiseShare >= NoiseEstimate.NoisyShare)
+        if (!p.Textured && p.NoiseShare >= NoiseEstimate.NoisyShare)
         {
             p.Noisy = true;
             p.SmoothIterations = 32;

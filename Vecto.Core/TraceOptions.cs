@@ -43,6 +43,8 @@ public sealed class EffectiveParams
     public int MinRegionArea;         // px; smaller regions are absorbed into a neighbor
     public bool MedianPrefilter;
     public bool Noisy;
+    /// <summary>Continuous-tone input (photo/textured art/old scan): fringe relabel and noisy treatment skipped.</summary>
+    public bool Textured;
     public double NoiseShare;
     public int SmoothIterations;
     public double SmoothLambda;
