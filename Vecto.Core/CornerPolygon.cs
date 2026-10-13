@@ -202,8 +202,8 @@ internal static class CornerPolygon
             cxy += dx * dy;
             cyy += dy * dy;
         }
-        double theta = 0.5 * Math.Atan2(2 * cxy, cxx - cyy);
-        var d = new Vec2(Math.Cos(theta), Math.Sin(theta));
+        double theta = 0.5 * DetMath.Atan2(2 * cxy, cxx - cyy);
+        var d = new Vec2(DetMath.Cos(theta), DetMath.Sin(theta));
         return (new Vec2(mx, my), d.Dot(span[^1] - span[0]) < 0 ? -d : d);
     }
 
@@ -336,8 +336,8 @@ internal static class CornerPolygon
         // cross(−e1, e2) < 0 in y-down coordinates)
         bool wedgeLeft = -cross < 0;
         double sgn = Math.Sign(cross);
-        double theta = Math.Acos(Math.Clamp(e1.Dot(e2), -1, 1));
-        double half = theta / 2, sinH = Math.Sin(half), tanH = Math.Tan(half);
+        double theta = DetMath.Acos(Math.Clamp(e1.Dot(e2), -1, 1));
+        double half = theta / 2, sinH = DetMath.Sin(half), tanH = DetMath.Tan(half);
         var bis = (e1 + e2).Normalized();
         double tMax = Math.Min(pinned1 ? reach1 / 2 : reach1, pinned2 ? reach2 / 2 : reach2);
 
@@ -377,7 +377,7 @@ internal static class CornerPolygon
         double Residual(double r)
         {
             var centre = apex + bis * (r / sinH);
-            double cut = r / tanH * Math.Cos(half);   // depth of the tangent points along the bisector
+            double cut = r / tanH * DetMath.Cos(half);   // depth of the tangent points along the bisector
             double sum = 0;
             foreach (var (x, y, cover) in obs)
             {
@@ -404,7 +404,7 @@ internal static class CornerPolygon
         double l1 = v1.Length, l2 = v2.Length;
         if (l1 < 1e-9 || l2 < 1e-9) return 0;
         double cos = Math.Clamp(v1.Dot(v2) / (l1 * l2), -1.0, 1.0);
-        return Math.Acos(cos) * (180.0 / Math.PI);
+        return DetMath.Acos(cos) * (180.0 / Math.PI);
     }
 
     /// <summary>
