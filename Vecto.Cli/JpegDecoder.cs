@@ -151,6 +151,8 @@ public static class JpegDecoder
         readonly int[]?[] qt = new int[4][];
         readonly Huffman?[] dcTab = new Huffman[4], acTab = new Huffman[4];
         Component[]? comps;
+        const int MaxSide = 65500;
+        const long MaxPixels = 1L << 28;
         int width, height, hmax, vmax, mcusX, mcusY, restartInterval, adobeTransform = -1;
         bool progressive, sawJfif;
         int eobrun;
@@ -214,6 +216,8 @@ public static class JpegDecoder
             width = U16(p + 3);
             int n = d[p + 5];
             if (height == 0 || width == 0 || (n != 1 && n != 3)) throw new NotSupportedException("frame");
+            // untrusted header sizes: refuse huge frames before any plane/coefficient allocation (ImageSharp decides)
+            if (width > MaxSide || height > MaxSide || (long)width * height > MaxPixels) throw new NotSupportedException("frame too large");
             comps = new Component[n];
             for (int i = 0; i < n; i++)
             {
