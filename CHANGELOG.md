@@ -17,6 +17,25 @@
   message in the status line; a file that cannot be opened shows a warning and leaves the current
   image and result untouched; a damaged settings file can no longer stop the window from opening.
 
+### Engine: thin bars keep square ends, corners decided by shape (VEC-12)
+- Corners used to be found by measuring the turn over a fixed 3-pixel window. At the end of a thin
+  bar the two corners are only ~3 pixels apart, so the window saw one big turn and the end came out
+  rounded — small rectangles became ovals, flag bars got teardrop ends. Each outline is now first
+  reduced to its simplest polygon (after the published Potrace method, Selinger 2003; our own
+  implementation), and every candidate corner is checked with its own two edges and against the
+  image, so both corners of a bar end survive and circles stay smooth. Quality test set: small
+  (128 px) images 4% fewer wrong pixels, clean 8%, JPEG 9%; the South Korea flag at 128 px 29%.
+  Known trade-off: very small rounded tips can come out pointed (rocket emoji stripe at 128 px).
+
+### Engine: soft-edge decision made where anti-aliasing blends (VEC-13)
+- The soft-edge fix below decided "dark or light side" at the midpoint of a perceptual colour
+  space; anti-aliasing blends in plain sRGB, so partly-dark edge pixels went to the light side and
+  thin dark lines lost a little ink. The decision is now made in sRGB.
+
+### Engine: JPEG specks cleaned up (VEC-14)
+- On images detected as JPEG-like, specks up to 14 px left by compression ringing are merged into
+  their surroundings: 10% fewer nodes on JPEGs, slightly more accurate, clean images unchanged.
+
 ### Engine: soft edges no longer become slivers of a third colour (VEC-10b)
 - A pixel on the soft edge between two colours has an in-between colour, and it was often given to
   a third palette colour that happened to be closest — so edges traced as thin slivers: a grey strip
