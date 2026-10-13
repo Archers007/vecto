@@ -16,10 +16,13 @@ public static class Oklab
         for (int i = 0; i < 256; i++)
         {
             double c = i / 255.0;
-            lut[i] = (float)(c <= 0.04045 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4));
+            lut[i] = (float)(c <= 0.04045 ? c / 12.92 : Pow24((c + 0.055) / 1.055));
         }
         return lut;
     }
+
+    // x^2.4 = x^2 · (x^2)^(1/5), via DetMath so the table is identical on every platform.
+    static double Pow24(double x) => x * x * DetMath.Root(x * x, 5);
 
     public static Lab FromRgb(byte r8, byte g8, byte b8)
     {
@@ -27,7 +30,7 @@ public static class Oklab
         float l = 0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b;
         float m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b;
         float s = 0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b;
-        float l_ = MathF.Cbrt(l), m_ = MathF.Cbrt(m), s_ = MathF.Cbrt(s);
+        float l_ = DetMath.Cbrt(l), m_ = DetMath.Cbrt(m), s_ = DetMath.Cbrt(s);
         return new Lab(
             0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_,
             1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_,
