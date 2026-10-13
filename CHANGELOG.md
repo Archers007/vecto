@@ -17,6 +17,15 @@
   message in the status line; a file that cannot be opened shows a warning and leaves the current
   image and result untouched; a damaged settings file can no longer stop the window from opening.
 
+### Engine: faster (VEC-20b)
+- The new stages are tuned: large scans now trace faster than in 0.4.2 (a 2,000-px patent drawing
+  0.70 s -> 0.42 s; 0.4.2 took 0.55 s), with byte-for-byte identical results.
+
+### Engine: JPEG detection no longer fooled by gradients and small text (VEC-19c)
+- The JPEG clean-up now also requires JPEG's 8x8 block pattern, so blurred shadows, gradients,
+  downscaled text and UI screenshots keep their detail. On 114 test images: 0 false detections
+  (was 13), all 42 JPEGs still detected.
+
 ### Engine: photos and textured images keep their detail (VEC-17)
 - The soft-edge and JPEG clean-ups added in this version were also firing on photos, painted or
   textured artwork and old scans, where thin in-between colour bands are real shading. Vecto now
