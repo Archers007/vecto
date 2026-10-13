@@ -186,7 +186,8 @@ public class CornerTests
         var img = Render(128, (x, y) =>
         {
             var p = new Vec2(x, y);
-            return Side(apex, a, p) >= 0 && Side(a, b, p) >= 0 && Side(b, apex, p) >= 0;
+            double s1 = Side(apex, a, p), s2 = Side(a, b, p), s3 = Side(b, apex, p);
+            return (s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0);
         });
         var loop = InkLoop(Tracer.Trace(img, Options).Document);
         var joins = SharpJoins(loop);
@@ -197,8 +198,6 @@ public class CornerTests
 
         static Vec2 Rotate(Vec2 v, double t) => new(v.X * Math.Cos(t) - v.Y * Math.Sin(t), v.X * Math.Sin(t) + v.Y * Math.Cos(t));
         // the triangle apex → a → b winds one way; same-sign cross products mean inside
-        double Side(Vec2 p0, Vec2 p1, Vec2 q) => Math.Sign((p1.X - p0.X) * (q.Y - p0.Y) - (p1.Y - p0.Y) * (q.X - p0.X)) * Winding;
+        static double Side(Vec2 p0, Vec2 p1, Vec2 q) => (p1.X - p0.X) * (q.Y - p0.Y) - (p1.Y - p0.Y) * (q.X - p0.X);
     }
-
-    static readonly double Winding = 1;
 }
