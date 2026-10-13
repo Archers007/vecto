@@ -79,6 +79,13 @@ public static class Tracer
         var palette = CompactPalette(img, labels, centers.Length);
         if (!p.ExactPalette)
             palette = MergeSimilarDisplays(img, labels, palette, w, h, minArea, ct);
+        p.NoiseShare = NoiseEstimate.InteriorNoiseShare(img, labels, w, h, ct);
+        if (p.NoiseShare >= NoiseEstimate.NoisyShare)
+        {
+            p.Noisy = true;
+            p.SmoothIterations = 32;
+            p.SmoothClamp = 1.5;
+        }
         var seg = Segmenter.Components(labels, w, h);
         long segmentMs = sw.ElapsedMilliseconds;
 
