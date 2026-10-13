@@ -11,7 +11,8 @@ command-line tool reads JPEGs exactly like the app.
 
 Known limitations: a fine 4-colour tile pattern saved as JPEG traces slightly less accurately than
 in 0.4.2 (curved tile edges are smoothed a little too much); tiny round line ends on small icons
-can come out flat.
+can come out flat; very small text in JPEGs stays hard to trace (thin letters can deform and faint
+grey captions can disappear — 0.4.2 turned them into coloured fragments instead).
 
 ### Build: fixed and future-proofed (VEC-01, VEC-02)
 - The build broke on 2026-10-07 when five security advisories hit the image library the `vecto` CLI
