@@ -112,7 +112,10 @@ public static class Tracer
         {
             if (options.CurveFitting)
             {
-                var corners = ChainGeometry.DetectCorners(chain.Points, chain.Closed, p.CornerThresholdDeg, p.CornerSupport);
+                // structural corners: optimal polygon of the lattice chain, then a per-vertex
+                // turn test on its own two edges (CornerPolygon — Potrace-style)
+                var poly = CornerPolygon.OptimalPolygon(chain.Points, chain.Closed);
+                var corners = CornerPolygon.Corners(chain.Points, chain.Closed, poly, p.CornerThresholdDeg);
                 var raw = corners.Count > 0 ? new List<Vec2>(chain.Points) : null;
                 Process(corners);
                 if (corners.Count > 0)
@@ -121,7 +124,8 @@ public static class Tracer
                     // staircase quantization spikes are gone. False corners (small circles!)
                     // would pin lattice dents and block the whole-ring arc fit.
                     var kept = corners
-                        .Where(c => ChainGeometry.TurnAngleAt(chain.Points, chain.Closed, c, p.CornerSupport) >= 55)
+                        .Where(c => CornerPolygon.Validate(chain.Points, chain.Closed, corners, c, p.CornerKeepDeg,
+                            img, ColorOf(chain.Left), ColorOf(chain.Right)))
                         .ToList();
                     if (kept.Count != corners.Count)
                     {
@@ -341,12 +345,10 @@ public static class Tracer
             SmoothIterations = 8,
             SmoothLambda = 0.55,
             SmoothClamp = 0.6,
-            // must exceed 63.4°: a shallow↔steep staircase transition measures as
-            // (3,0) vs (1,2) at k=3 support and would otherwise pin false corners on circles
-            CornerThresholdDeg = 68,
-            CornerSupport = 3,
+            CornerThresholdDeg = 45,
+            CornerKeepDeg = 55,
             SubpixelMaxShift = style == ImageStyle.Crisp ? 0.35 : 0.75,
-            CornerRelocateMaxShift = 1.0,
+            CornerRelocateMaxShift = 1.5,
             AngleSnapDeg = 1.0,
             FitToleranceSq = o.Detail switch { DetailLevel.Low => 1.0, DetailLevel.High => 0.09, _ => 0.25 },
             PolygonEpsilon = o.PolygonEpsilon >= 0 ? o.PolygonEpsilon
