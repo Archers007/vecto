@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Vecto.Core;
 
 /// <summary>
@@ -12,6 +14,7 @@ internal static class ChainGeometry
     /// never drifting more than <paramref name="clamp"/> px from the raster boundary.
     /// Chain endpoints and detected corners stay pinned to their exact lattice points.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static void SmoothInPlace(List<Vec2> pts, bool closed, IReadOnlyList<int> pinned, int iterations, double lambda, double clamp)
     {
         int n = closed ? pts.Count - 1 : pts.Count;
@@ -75,6 +78,7 @@ internal static class ChainGeometry
     /// encodes the true edge position at sub-pixel precision — the crack lattice discards
     /// it, this recovers it. Corners/junctions stay pinned; per-chain, so planarity holds.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static void SubpixelRefine(List<Vec2> pts, bool closed, IReadOnlyList<int> pinned,
         RasterImage img, Rgba32? left, Rgba32? right, double maxShift)
     {
@@ -143,6 +147,7 @@ internal static class ChainGeometry
     /// Fraction of the left region's colour in the source at <paramref name="q"/> (bilinear),
     /// projected on the left↔right colour axis; NaN when the two colours are indistinguishable.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static double CoverLeft(RasterImage img, Rgba32? left, Rgba32? right, Vec2 q)
     {
         var (sr, sg, sb, sa) = Sample(img, q.X, q.Y);
@@ -160,6 +165,7 @@ internal static class ChainGeometry
     /// axis; NaN outside the image, for indistinguishable colours, or when the pixel's colour lies
     /// well off that axis (a third colour, not a blend of the two).
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static double PixelCoverLeft(RasterImage img, Rgba32? left, Rgba32? right, int x, int y)
     {
         if (x < 0 || y < 0 || x >= img.Width || y >= img.Height) return double.NaN;
@@ -177,6 +183,7 @@ internal static class ChainGeometry
         return er * er + eg * eg + eb * eb > 0.0625 * lenSq ? double.NaN : f;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     static (double R, double G, double B, double A) Sample(RasterImage img, double x, double y)
     {
         double u = x - 0.5, v = y - 0.5;   // pixel centers sit at +0.5 in crack coordinates
@@ -213,6 +220,7 @@ internal static class ChainGeometry
     /// planarity holds. Junctions (chain endpoints) stay pinned: consistent relocation there
     /// needs a multi-chain solve (ROADMAP).
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static void RelocateCorners(List<Vec2> pts, bool closed, IReadOnlyList<int> corners, double maxShift, double snapDeg)
     {
         int n = closed ? pts.Count - 1 : pts.Count;

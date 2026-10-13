@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Vecto.Core;
 
 internal sealed class Segmentation
@@ -25,7 +27,7 @@ internal static class Segmenter
             return labels;
         }
         var px = img.Pixels;
-        Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, y =>
+        Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, [MethodImpl(MethodImplOptions.AggressiveOptimization)] (y) =>
         {
             int i = y * w;
             for (int x = 0; x < w; x++, i++)
@@ -88,7 +90,7 @@ internal static class Segmenter
             rgb[c * 3 + 2] = b;
         }
         int span = 2 * FringeRadius + 1;
-        Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, y =>
+        Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, [MethodImpl(MethodImplOptions.AggressiveOptimization)] (y) =>
         {
             Span<int> nb = stackalloc int[span * span];
             for (int x = 0; x < w; x++)
@@ -171,6 +173,7 @@ internal static class Segmenter
     /// the image edge is never mistaken for transparency. A region with no in-bounds border
     /// at all (e.g. it covers the whole image) falls back to -1.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static void AbsorbSmallRegions(int[] labels, int w, int h, int minArea, CancellationToken ct)
     {
         if (minArea <= 1) return;
@@ -307,6 +310,7 @@ internal static class Segmenter
     }
 
     /// <summary>Fills <paramref name="regionId"/>; <paramref name="stack"/> is w·h scratch.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     static (List<int> areas, List<int> palette) ConnectedComponents(int[] labels, int w, int h, int[] regionId, int[] stack)
     {
         Array.Fill(regionId, -1);
