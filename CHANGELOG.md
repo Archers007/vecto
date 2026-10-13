@@ -17,6 +17,18 @@
   message in the status line; a file that cannot be opened shows a warning and leaves the current
   image and result untouched; a damaged settings file can no longer stop the window from opening.
 
+### Engine: photos and textured images keep their detail (VEC-17)
+- The soft-edge and JPEG clean-ups added in this version were also firing on photos, painted or
+  textured artwork and old scans, where thin in-between colour bands are real shading. Vecto now
+  measures how textured an image is first and leaves such images on the previous path: a photo
+  test (Mona Lisa) is back to 0.4.2 quality instead of 20% worse, while logos and line-art scans
+  keep their gains.
+
+### Engine: small rounded tips stay rounded (VEC-16)
+- The new corner stage could turn a narrow rounded tip (a rocket's stripe at 128 px) into a sharp
+  point. Sharp-versus-rounded is now checked against the anti-aliased pixels at the tip: rounded
+  tips stay round, genuinely sharp tips (wedges, star points) stay sharp.
+
 ### Engine: thin bars keep square ends, corners decided by shape (VEC-12)
 - Corners used to be found by measuring the turn over a fixed 3-pixel window. At the end of a thin
   bar the two corners are only ~3 pixels apart, so the window saw one big turn and the end came out
@@ -25,7 +37,6 @@
   implementation), and every candidate corner is checked with its own two edges and against the
   image, so both corners of a bar end survive and circles stay smooth. Quality test set: small
   (128 px) images 4% fewer wrong pixels, clean 8%, JPEG 9%; the South Korea flag at 128 px 29%.
-  Known trade-off: very small rounded tips can come out pointed (rocket emoji stripe at 128 px).
 
 ### Engine: soft-edge decision made where anti-aliasing blends (VEC-13)
 - The soft-edge fix below decided "dark or light side" at the midpoint of a perceptual colour
