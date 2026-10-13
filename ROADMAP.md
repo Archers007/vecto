@@ -17,6 +17,9 @@
   `assets/msix/*` (StoreLogo, Square44x44 incl. targetsize/unplated variants, Square150x150, Wide if added),
   `assets/Vecto_Logo_1024x1024.png`, site favicon. Check contrast on light, dark and accent backgrounds at 16/24/32 px.
 - Small text in JPEGs (thin letters deform, faint captions vanish) — text-aware tracing.
+- Exact ellipses (and better small rounded shapes): circles are fitted exactly, but ellipses fall back to Bezier
+  approximations that wobble or flatten at 512 px inputs (cat eyes/cheeks/nose in the Store art); add an ellipse
+  primitive like the circle fit, and check small rounded-triangle shapes.
 - pattern-tiles-style JPEGs: noisy smoothing per chain (fewer passes on curved chains) to recover the last realistic
   regression vs 0.4.2.
 
