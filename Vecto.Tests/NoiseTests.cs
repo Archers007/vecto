@@ -64,25 +64,35 @@ public class NoiseTests
     }
 
     /// <summary>
-    /// Adds deterministic pseudo-random +/-6 level noise to every pixel.
+    /// Adds deterministic JPEG-like noise: each 8x8 block (JPEG's DCT grid) gets one uniform
+    /// +/-6 level offset per channel. Block-correlated noise lands in the measured JPEG band
+    /// (interior noise share 0.03-0.4); per-pixel iid noise at this amplitude measures ~1.0
+    /// and is indistinguishable from texture, so it correctly falls under the textured guard.
     /// </summary>
     static RasterImage AddNoise(RasterImage src, int seed = 42)
     {
         int w = src.Width, h = src.Height;
         var noisy = new RasterImage(w, h);
         var rnd = new Random(seed);
-        for (int y = 0; y < h; y++)
+        for (int by = 0; by < h; by += 8)
         {
-            for (int x = 0; x < w; x++)
+            for (int bx = 0; bx < w; bx += 8)
             {
-                var p = src.GetPixel(x, y);
                 int dr = rnd.Next(-6, 7);
                 int dg = rnd.Next(-6, 7);
                 int db = rnd.Next(-6, 7);
-                byte r = (byte)Math.Clamp(p.R + dr, 0, 255);
-                byte g = (byte)Math.Clamp(p.G + dg, 0, 255);
-                byte b = (byte)Math.Clamp(p.B + db, 0, 255);
-                noisy.SetPixel(x, y, new Rgba32(r, g, b, p.A));
+                for (int y = by; y < Math.Min(by + 8, h); y++)
+                {
+                    for (int x = bx; x < Math.Min(bx + 8, w); x++)
+                    {
+                        var p = src.GetPixel(x, y);
+                        noisy.SetPixel(x, y, new Rgba32(
+                            (byte)Math.Clamp(p.R + dr, 0, 255),
+                            (byte)Math.Clamp(p.G + dg, 0, 255),
+                            (byte)Math.Clamp(p.B + db, 0, 255),
+                            p.A));
+                    }
+                }
             }
         }
         return noisy;
@@ -111,6 +121,42 @@ public class NoiseTests
         Assert.Equal(svg1, svg2);
     }
 
+    /// <summary>
+    /// Builds a continuous-tone test image: a smooth 2-D colour gradient plus mild deterministic noise.
+    /// </summary>
+    static RasterImage CreateGradientImage(int w = 120, int h = 120)
+    {
+        var img = new RasterImage(w, h);
+        var rnd = new Random(7);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                byte r = (byte)Math.Clamp(x * 2 + rnd.Next(-2, 3), 0, 255);
+                byte g = (byte)Math.Clamp(y * 2 + rnd.Next(-2, 3), 0, 255);
+                byte b = (byte)Math.Clamp(x + y + rnd.Next(-2, 3), 0, 255);
+                img.SetPixel(x, y, new Rgba32(r, g, b, 255));
+            }
+        }
+        return img;
+    }
+
+    [Fact]
+    public void ContinuousToneImageIsTexturedAndNotNoisy()
+    {
+        var img = CreateGradientImage();
+        var opt = new TraceOptions { Style = ImageStyle.Blended };
+
+        var res = Tracer.Trace(img, opt);
+
+        // Smooth gradients are texture, not JPEG ringing: textured guard fires,
+        // noisy treatment (extra smoothing, speck cleanup) stays off
+        Assert.True(res.Diagnostics.Params.Textured);
+        Assert.False(res.Diagnostics.Params.Noisy);
+        Assert.Equal(8, res.Diagnostics.Params.SmoothIterations);
+        Assert.Equal(0.6, res.Diagnostics.Params.SmoothClamp);
+    }
+
     [Fact]
     public void NoisyImageHasHighNoiseShareAndFlagsNoisy()
     {
@@ -123,6 +169,9 @@ public class NoiseTests
         // Interior noise share must be >= 0.03 and flagged noisy
         Assert.True(res.Diagnostics.Params.Noisy);
         Assert.True(res.Diagnostics.Params.NoiseShare >= 0.03);
+
+        // Flat art with noise is JPEG-like, not textured: the guard must not fire
+        Assert.False(res.Diagnostics.Params.Textured);
 
         // Stronger smoothing parameters applied
         Assert.Equal(32, res.Diagnostics.Params.SmoothIterations);

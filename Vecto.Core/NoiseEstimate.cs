@@ -27,6 +27,15 @@ internal static class NoiseEstimate
     /// <summary>Specks smaller than this are absorbed on noisy inputs; Detail=Low's Blended size.</summary>
     public const int NoisyMinRegionArea = 14;
 
+    /// <summary>
+    /// Interior noise share at or above which the input is TEXTURED (photos, textured art, old scans):
+    /// there the thin in-between colour bands are real shading, not anti-aliasing fringes, and the
+    /// high share is texture, not JPEG ringing — so both the fringe relabel and the noisy treatment
+    /// are skipped. Measured shares: photo-mona-lisa 0.999, art-great-wave 0.958, Burroughs patent
+    /// scan 0.56, JPEG-compressed flat art 0.037-0.28, clean/small inputs &lt;= 0.02.
+    /// </summary>
+    public const double TexturedShare = 0.4;
+
     public static double InteriorNoiseShare(RasterImage img, int[] labels, int w, int h, CancellationToken ct)
     {
         if (w <= 0 || h <= 0 || labels.Length < w * h)
