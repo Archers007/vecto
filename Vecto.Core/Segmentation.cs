@@ -246,7 +246,14 @@ internal static class Segmenter
     }
 
     static float LinearToSrgb(float v) =>
-        v <= 0.0031308f ? v * 12.92f : 1.055f * MathF.Pow(v, 1f / 2.4f) - 0.055f;
+        v <= 0.0031308f ? v * 12.92f : 1.055f * Pow5Over12(v) - 0.055f;
+
+    // v^(1/2.4) = (v^(1/12))^5, deterministic across platforms (see DetMath).
+    static float Pow5Over12(float v)
+    {
+        double r = DetMath.Root(v, 12);
+        return (float)(r * r * r * r * r);
+    }
 
     /// <summary>
     /// Repeatedly relabels regions smaller than <paramref name="minArea"/> to the neighbor
