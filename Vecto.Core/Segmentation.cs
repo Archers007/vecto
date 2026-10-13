@@ -174,50 +174,116 @@ internal static class Segmenter
     public static void AbsorbSmallRegions(int[] labels, int w, int h, int minArea, CancellationToken ct)
     {
         if (minArea <= 1) return;
-        for (int pass = 0; pass < 10; pass++)
+        const int passes = 10;
+        var regionId = new int[w * h];
+        var stack = new int[w * h];
+        // per pass, the pixels that actually changed (pixel, label before, label after):
+        // a pass is a pure function of the labels, so once a pass undoes the previous one
+        // (small regions swapping labels back and forth) the rest of the passes just repeat
+        // that 2-cycle and the final labels are known without running them
+        var log = new List<(int I, int From, int To)>();
+        var prevLog = new List<(int I, int From, int To)>();
+        // border tallies in first-seen order (ties go to the first-seen neighbour);
+        // at[neighbour + 1] is its index in the tally, -1 when not seen yet
+        int[] at = Array.Empty<int>();
+        var nbId = new List<int>();
+        var nbLen = new List<int>();
+        for (int pass = 0; pass < passes; pass++)
         {
             ct.ThrowIfCancellationRequested();
-            var (regionId, areas, palette) = ConnectedComponents(labels, w, h);
+            var (areas, palette) = ConnectedComponents(labels, w, h, regionId, stack);
+            int rc = areas.Count;
             var small = new List<int>();
-            for (int r = 0; r < areas.Count; r++)
+            for (int r = 0; r < rc; r++)
                 if (areas[r] < minArea) small.Add(r);
             if (small.Count == 0) return;
 
-            var slot = new Dictionary<int, int>(small.Count);
-            for (int s = 0; s < small.Count; s++) slot[small[s]] = s;
-            var pixels = new List<int>[small.Count];
-            for (int s = 0; s < small.Count; s++) pixels[s] = new List<int>();
+            // pixels of every small region in ascending order, packed into one array
+            var slot = new int[rc];
+            Array.Fill(slot, -1);
+            var first = new int[small.Count + 1];
+            for (int s = 0; s < small.Count; s++)
+            {
+                slot[small[s]] = s;
+                first[s + 1] = first[s] + areas[small[s]];
+            }
+            var fill = new int[small.Count];
+            Array.Copy(first, fill, small.Count);
+            var pixels = new int[first[small.Count]];
             for (int i = 0; i < labels.Length; i++)
-                if (regionId[i] >= 0 && slot.TryGetValue(regionId[i], out int s))
-                    pixels[s].Add(i);
+            {
+                int id = regionId[i];
+                if (id >= 0 && slot[id] >= 0) pixels[fill[slot[id]]++] = i;
+            }
 
+            at = new int[rc + 1];
+            Array.Fill(at, -1);
+            log.Clear();
             small.Sort((a, b) => areas[a] != areas[b] ? areas[a] - areas[b] : a - b);
             foreach (var r in small)
             {
-                var border = new Dictionary<int, int>();
-                foreach (var i in pixels[slot[r]])
+                int s = slot[r];
+                for (int k = first[s]; k < first[s + 1]; k++)
                 {
+                    int i = pixels[k];
                     int x = i % w, y = i / w;
-                    Tally(i - 1, x > 0);
-                    Tally(i + 1, x < w - 1);
-                    Tally(i - w, y > 0);
-                    Tally(i + w, y < h - 1);
-
-                    void Tally(int j, bool inBounds)
-                    {
-                        if (!inBounds) return;
-                        int neighbor = regionId[j];
-                        if (neighbor == r) return;
-                        border[neighbor] = border.GetValueOrDefault(neighbor) + 1;
-                    }
+                    if (x > 0) Tally(regionId[i - 1], r);
+                    if (x < w - 1) Tally(regionId[i + 1], r);
+                    if (y > 0) Tally(regionId[i - w], r);
+                    if (y < h - 1) Tally(regionId[i + w], r);
                 }
                 int target = -1, best = -1;
-                foreach (var (neighbor, len) in border)
-                    if (len > best) { best = len; target = neighbor; }
+                for (int k = 0; k < nbId.Count; k++)
+                {
+                    if (nbLen[k] > best) { best = nbLen[k]; target = nbId[k]; }
+                    at[nbId[k] + 1] = -1;
+                }
+                nbId.Clear();
+                nbLen.Clear();
                 int targetLabel = target < 0 ? -1 : palette[target];
-                foreach (var i in pixels[slot[r]]) labels[i] = targetLabel;
+                for (int k = first[s]; k < first[s + 1]; k++)
+                {
+                    int i = pixels[k];
+                    if (labels[i] == targetLabel) continue;
+                    log.Add((i, labels[i], targetLabel));
+                    labels[i] = targetLabel;
+                }
             }
+            if (log.Count == 0) return;   // a fixed point: every later pass is the same no-op
+            if (Undoes(log, prevLog))
+            {
+                // labels are back to where they were two passes ago; an odd number of
+                // remaining passes ends on the other state of the cycle
+                if ((passes - 1 - pass) % 2 == 1)
+                    foreach (var (i, _, to) in prevLog) labels[i] = to;
+                return;
+            }
+            (log, prevLog) = (prevLog, log);
         }
+
+        void Tally(int neighbor, int r)
+        {
+            if (neighbor == r) return;
+            int k = at[neighbor + 1];
+            if (k < 0)
+            {
+                at[neighbor + 1] = nbId.Count;
+                nbId.Add(neighbor);
+                nbLen.Add(1);
+            }
+            else nbLen[k]++;
+        }
+    }
+
+    /// <summary>Does <paramref name="log"/> restore exactly the labels <paramref name="prev"/> changed?</summary>
+    static bool Undoes(List<(int I, int From, int To)> log, List<(int I, int From, int To)> prev)
+    {
+        if (log.Count != prev.Count) return false;
+        var before = new Dictionary<int, int>(prev.Count);
+        foreach (var (i, from, _) in prev) before[i] = from;
+        foreach (var (i, _, to) in log)
+            if (!before.TryGetValue(i, out int from) || from != to) return false;
+        return true;
     }
 
     public static Segmentation Components(int[] labels, int w, int h)
@@ -236,8 +302,14 @@ internal static class Segmenter
     static (int[] regionId, List<int> areas, List<int> palette) ConnectedComponents(int[] labels, int w, int h)
     {
         var regionId = new int[w * h];
+        var (areas, palette) = ConnectedComponents(labels, w, h, regionId, new int[w * h]);
+        return (regionId, areas, palette);
+    }
+
+    /// <summary>Fills <paramref name="regionId"/>; <paramref name="stack"/> is w·h scratch.</summary>
+    static (List<int> areas, List<int> palette) ConnectedComponents(int[] labels, int w, int h, int[] regionId, int[] stack)
+    {
         Array.Fill(regionId, -1);
-        var stack = new int[w * h];
         var areas = new List<int>();
         var palette = new List<int>();
         for (int i = 0; i < labels.Length; i++)
@@ -259,6 +331,6 @@ internal static class Segmenter
             areas.Add(area);
             palette.Add(lab);
         }
-        return (regionId, areas, palette);
+        return (areas, palette);
     }
 }
