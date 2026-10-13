@@ -96,4 +96,57 @@ public class FringeTests
         var b = SvgWriter.Write(Tracer.Trace(img, Options(3)).Document);
         Assert.Equal(a, b);
     }
+
+    /// <summary>
+    /// VEC-13: the A-or-B side must be decided in gamma sRGB, where anti-aliasing actually
+    /// blends. A 4-px black bar whose edge columns are sRGB blends at 50/55/60% black
+    /// coverage must keep its full ink width: the Oklab midpoint sits near sRGB 100, so the
+    /// old Oklab-side decision shaved such edge pixels off thin dark lines.
+    /// </summary>
+    [Theory]
+    [InlineData(0.50)]
+    [InlineData(0.55)]
+    [InlineData(0.60)]
+    public void AntiAliasedBarKeepsItsInkWidth(double coverage)
+    {
+        int w = 64, h = 48;
+        // sRGB blend of black over white at the given coverage; 50% (127.5) truncates to
+        // 127, the dark side of the sRGB split.
+        byte edge = (byte)(255 * (1 - coverage));
+        var edgeColor = new Rgba32(edge, edge, edge, 255);
+        var img = new RasterImage(w, h);
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                img.SetPixel(x, y, White);
+        for (int y = 0; y < h; y++)
+        {
+            img.SetPixel(20, y, edgeColor);
+            img.SetPixel(21, y, Black);
+            img.SetPixel(22, y, Black);
+            img.SetPixel(23, y, edgeColor);
+        }
+        // Solid blocks away from the bar: the black square keeps black in the palette
+        // (every bar pixel borders an AA column, so the sampler never sees a flat black
+        // pixel), and the grey block keeps grey in it — so the AA edge columns are
+        // labelled grey, the third colour, and become candidates for the fringe relabel.
+        for (int y = 12; y <= 27; y++)
+            for (int x = 40; x <= 55; x++)
+                img.SetPixel(x, y, Black);
+        for (int y = 32; y <= 41; y++)
+            for (int x = 40; x <= 49; x++)
+                img.SetPixel(x, y, SolidGrey);
+        var doc = Tracer.Trace(img, Options(3)).Document;
+        int black = -1;
+        for (int i = 0; i < doc.Palette.Count; i++)
+        {
+            var c = doc.Palette[i].Color;
+            if (c.R < 30 && c.G < 30 && c.B < 30) { black = i; break; }
+        }
+        Assert.True(black >= 0, "black is in the palette");
+        // The bar spans the full height, so its filled width is its region's area / height.
+        Assert.True(
+            doc.Regions.Any(r => r.PaletteIndex == black && Math.Abs(r.Area / (double)h - 4) <= 0.25),
+            $"no black region of width 4 ± 0.25 px; black areas: " +
+            string.Join(", ", doc.Regions.Where(r => r.PaletteIndex == black).Select(r => r.Area)));
+    }
 }
