@@ -14,7 +14,7 @@
 <p align="center">
   <a href="https://apps.microsoft.com/detail/9PM61P4NC8J2"><img src="https://img.shields.io/badge/Microsoft%20Store-%247.99-0C8CE9" alt="Get it on the Microsoft Store — $7.99"/></a>
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"/>
-  <img src="https://img.shields.io/badge/platform-Windows-0C8CE9" alt="Windows"/>
+  <img src="https://img.shields.io/badge/platform-Windows%20app%20%C2%B7%20Linux%20%2F%20macOS%20CLI-0C8CE9" alt="Windows app, plus a command-line tool for Linux and macOS"/>
   <img src="https://img.shields.io/badge/.NET-8.0-512BD4" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/dependencies-zero%20(engine)-success" alt="zero-dependency engine"/>
 </p>
@@ -91,6 +91,9 @@ After the build:
   pin it to the taskbar.
 - **CLI:** `Vecto.Cli\bin\Release\net8.0\vecto.exe` — add that folder to your `PATH` to
   call `vecto` from anywhere.
+
+On **Linux or macOS**, use the ready-made `vecto` command-line downloads from the
+[Releases page](https://github.com/DanielMevit/Vecto/releases) — the desktop app itself is Windows-only.
 
 ## Using Vecto
 
