@@ -359,6 +359,99 @@ internal static class ChainGeometry
         }
     }
 
+    /// <summary>
+    /// Noisy (JPEG) inputs: ringing shifts an edge differently in every 8×8 block, so a straight
+    /// side's refined points wave with a block-length wavelength no local smoothing removes.
+    /// Each run between two pins (corners, open-chain ends) that is straight within that noise —
+    /// every point within <paramref name="maxDev"/> px of the total-least-squares line through all
+    /// of them, and no bow (the residuals' quadratic trend, a curve's signature, stays under
+    /// <paramref name="maxSag"/> px) — is projected onto that one line, averaged over the whole side.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public static void StraightenRuns(List<Vec2> pts, bool closed, IReadOnlyList<int> corners, int minRun,
+        double maxDev, double maxSag, double trimFrac, double endDev)
+    {
+        int n = closed ? pts.Count - 1 : pts.Count;
+        if (n < minRun) return;
+        var pins = new List<int>(corners);
+        if (!closed)
+        {
+            pins.Add(0);
+            pins.Add(n - 1);
+        }
+        pins = pins.Distinct().OrderBy(i => i).ToList();
+        if (pins.Count == 0 || (closed && pins.Count < 2)) return;
+        int runs = closed ? pins.Count : pins.Count - 1;
+        var idx = new List<int>();
+        for (int k = 0; k < runs; k++)
+        {
+            int a = pins[k], b = k + 1 < pins.Count ? pins[k + 1] : pins[0] + n;
+            idx.Clear();
+            for (int j = a + 1; j < b; j++) idx.Add(closed ? j % n : j);
+            if (idx.Count < minRun) continue;
+            // the line comes from the run without its two AA-bent shoulders
+            double mx = 0, my = 0;
+            int trim = Math.Max(1, (int)(idx.Count * trimFrac)), lo = trim, hi = idx.Count - 1 - trim;
+            int m = hi - lo + 1;
+            for (int t = lo; t <= hi; t++) { mx += pts[idx[t]].X; my += pts[idx[t]].Y; }
+            mx /= m;
+            my /= m;
+            double cxx = 0, cxy = 0, cyy = 0;
+            for (int t = lo; t <= hi; t++)
+            {
+                double dx = pts[idx[t]].X - mx, dy = pts[idx[t]].Y - my;
+                cxx += dx * dx;
+                cxy += dx * dy;
+                cyy += dy * dy;
+            }
+            double theta = 0.5 * Math.Atan2(2 * cxy, cxx - cyy);
+            var dir = new Vec2(Math.Cos(theta), Math.Sin(theta));
+            var nrm = new Vec2(-dir.Y, dir.X);
+            var c = new Vec2(mx, my);
+            // residual r(s) along the line: max deviation and least-squares quadratic trend
+            double s0 = double.MaxValue, s1 = double.MinValue, worst = 0;
+            for (int t = lo; t <= hi; t++)
+            {
+                var q = pts[idx[t]] - c;
+                double s = q.Dot(dir), r = q.Dot(nrm);
+                s0 = Math.Min(s0, s);
+                s1 = Math.Max(s1, s);
+                worst = Math.Max(worst, Math.Abs(r));
+            }
+            if (Environment.GetEnvironmentVariable("VX_C") == "1" && idx.Count >= 20)
+                Console.Error.WriteLine($"run {pts[idx[0]]} -> {pts[idx[^1]]} n={idx.Count} worst={worst:F2} closed={closed} pins={pins.Count}");
+            if (worst > maxDev) continue;
+            double half = (s1 - s0) / 2, mid = (s0 + s1) / 2;
+            if (half < 1) continue;
+            // fit r = α·u² + β·u + γ with u in [-1, 1]; sagitta of the bow ≈ |α|
+            double su0 = 0, su1 = 0, su2 = 0, su3 = 0, su4 = 0, sr0 = 0, sr1 = 0, sr2 = 0;
+            for (int t = lo; t <= hi; t++)
+            {
+                var q = pts[idx[t]] - c;
+                double u = (q.Dot(dir) - mid) / half, r = q.Dot(nrm), u2 = u * u;
+                su0 += 1; su1 += u; su2 += u2; su3 += u2 * u; su4 += u2 * u2;
+                sr0 += r; sr1 += r * u; sr2 += r * u2;
+            }
+            double det = su4 * (su2 * su0 - su1 * su1) - su3 * (su3 * su0 - su1 * su2) + su2 * (su3 * su1 - su2 * su2);
+            if (Math.Abs(det) < 1e-12) continue;
+            double alpha = (sr2 * (su2 * su0 - su1 * su1) - su3 * (sr1 * su0 - su1 * sr0) + su2 * (sr1 * su1 - su2 * sr0)) / det;
+            if (Environment.GetEnvironmentVariable("VX_C") == "1" && idx.Count >= 20)
+                Console.Error.WriteLine($"   alpha={alpha:F3}");
+            if (Math.Abs(alpha) > maxSag) continue;
+            // the trimmed ends join the line only while they stay on it: past that they are the
+            // start of a curve into the pin, which must keep its shape
+            int from = lo, to = hi;
+            while (from > 0 && Math.Abs((pts[idx[from - 1]] - c).Dot(nrm)) <= endDev) from--;
+            while (to < idx.Count - 1 && Math.Abs((pts[idx[to + 1]] - c).Dot(nrm)) <= endDev) to++;
+            for (int t = from; t <= to; t++)
+            {
+                var q = pts[idx[t]] - c;
+                pts[idx[t]] = c + dir * q.Dot(dir);
+            }
+        }
+        if (closed) pts[n] = pts[0];
+    }
+
     /// <summary>Douglas–Peucker with distance-to-segment (handles closed chains where first == last).</summary>
     public static List<Vec2> SimplifyDp(List<Vec2> pts, double epsilon)
     {

@@ -141,6 +141,9 @@ public static class Tracer
                         corners = kept;
                         Process(corners);
                     }
+                    if (p.Noisy && EnvD("VX_ON", 1) > 0)
+                        ChainGeometry.StraightenRuns(chain.Points, chain.Closed, corners, (int)EnvD("VX_MIN", 10),
+                            EnvD("VX_DEV", 1.0), EnvD("VX_SAG", 0.25), EnvD("VX_A", 0), EnvD("VX_B", 99));
                     // pinned lattice corners tilt their adjacent lines by up to ~0.5 px;
                     // move each to the intersection of its refined flank lines instead
                     ChainGeometry.RelocateCorners(chain.Points, chain.Closed, corners,
@@ -200,6 +203,10 @@ public static class Tracer
         diag.TotalMs = total.ElapsedMilliseconds;
         return new TraceResult { Document = doc, LabelMap = labels, Width = w, Height = h, Diagnostics = diag };
     }
+
+    static double EnvD(string k, double d) =>
+        double.TryParse(Environment.GetEnvironmentVariable(k), System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : d;
 
     static List<CubicBezier> BuildLoop(List<ChainUse> loop, List<Chain> chains)
     {
