@@ -148,10 +148,58 @@ internal static class Segmenter
                     to[i] = bestL;
             }
         });
+        KeepSolidRegions(img, src, to, centers, w, h);
         var blocked = WashesOut(img, src, to, nc, w);
         for (int i = 0; i < to.Length; i++)
             if (to[i] >= 0 && !blocked[to[i]])
                 labels[i] = to[i];
+    }
+
+    /// <summary>
+    /// Keeps the fringe candidates of solid regions: a region whose pixels mostly sit on its
+    /// own palette colour (within <c>coreDist</c>) and that holds only a handful of candidates
+    /// is a real fill — e.g. the overlap of two translucent shapes, whose colour genuinely
+    /// is a blend of its neighbours — not an anti-aliasing ring, and relabelling its few
+    /// near-colour pixels cuts thin overlap areas apart at small sizes. Candidates far from
+    /// the region's colour, regions made mostly of candidates (true fringes, thin strokes)
+    /// and regions with many candidates (JPEG-noisy backgrounds) relabel as before.
+    /// </summary>
+    static void KeepSolidRegions(RasterImage img, int[] src, int[] to, Lab[] centers, int w, int h)
+    {
+        const float coreDist = 0.03f, keepDist = 0.08f;
+        const int maxCand = 16;
+        var px = img.Pixels;
+        float core2 = coreDist * coreDist, keep2 = keepDist * keepDist;
+        var seen = new bool[src.Length];
+        var stack = new List<int>();
+        var region = new List<int>();
+        for (int s = 0; s < src.Length; s++)
+        {
+            if (to[s] < 0 || seen[s]) continue;
+            int c = src[s];
+            region.Clear(); stack.Clear();
+            stack.Add(s); seen[s] = true;
+            int core = 0, cand = 0;
+            while (stack.Count > 0)
+            {
+                int i = stack[^1]; stack.RemoveAt(stack.Count - 1);
+                region.Add(i);
+                int pi = i * 4;
+                if (to[i] >= 0) cand++;
+                if (Oklab.DistSq(Oklab.FromRgb(px[pi], px[pi + 1], px[pi + 2]), centers[c]) < core2) core++;
+                int x = i % w, y = i / w;
+                if (x > 0 && !seen[i - 1] && src[i - 1] == c) { seen[i - 1] = true; stack.Add(i - 1); }
+                if (x < w - 1 && !seen[i + 1] && src[i + 1] == c) { seen[i + 1] = true; stack.Add(i + 1); }
+                if (y > 0 && !seen[i - w] && src[i - w] == c) { seen[i - w] = true; stack.Add(i - w); }
+                if (y < h - 1 && !seen[i + w] && src[i + w] == c) { seen[i + w] = true; stack.Add(i + w); }
+            }
+            if (2 * core >= region.Count && 50 * cand <= region.Count && cand <= maxCand)
+                foreach (int i in region)
+                {
+                    int pi = i * 4;
+                    if (to[i] >= 0 && Oklab.DistSq(Oklab.FromRgb(px[pi], px[pi + 1], px[pi + 2]), centers[c]) < keep2) to[i] = -1;
+                }
+        }
     }
 
     /// <summary>
