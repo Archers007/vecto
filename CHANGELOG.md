@@ -17,6 +17,16 @@
   message in the status line; a file that cannot be opened shows a warning and leaves the current
   image and result untouched; a damaged settings file can no longer stop the window from opening.
 
+### CLI: JPEGs decoded exactly like the app (VEC-23)
+- The command-line tool now decodes JPEGs the same way as the Windows app (libjpeg's integer IDCT
+  and smooth chroma upsampling, our own code, no new dependency), so a JPEG traces identically in
+  both: 26 of 26 test JPEGs match. Unusual JPEGs (CMYK, 12-bit, arithmetic coding) still use the
+  previous decoder.
+
+### Engine: small dark text in JPEGs stays dark (VEC-21, part 1)
+- The soft-edge clean-up could merge so many fringe pixels into small dark text that its colour
+  was averaged towards grey (a chart title in a JPEG). Such colours now keep their fringes.
+
 ### Engine: faster (VEC-20b)
 - The new stages are tuned: large scans now trace faster than in 0.4.2 (a 2,000-px patent drawing
   0.70 s -> 0.42 s; 0.4.2 took 0.55 s), with byte-for-byte identical results.
