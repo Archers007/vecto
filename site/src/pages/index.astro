@@ -71,8 +71,8 @@ const faqs = [
     a: "Potrace-style tracers vectorize each color as a separate stacked layer, which leaves hairline gaps and overlaps where colors meet. Vecto traces the image as one connected mosaic — every boundary is computed once and shared by both neighboring shapes, so gaps can't exist. It also recognizes straight lines and circles and emits them as exact geometry.",
   },
   {
-    q: "Does it work on photos?",
-    a: "Yes, in a stylized way — photos become posterized vector art with a chosen number of colors (there's a dedicated photo style). For logos, icons and illustrations the trace aims to be faithful. One tip for everything: feed the highest-resolution image you have — quality scales with input size.",
+    q: "What works best — and what doesn't?",
+    a: "Vecto is built for flat-color graphics: logos, icons, badges, stickers, flags, flat illustrations and clean line drawings or scans. It is not the right tool for smooth gradients and soft shadows (they are traced as bands of color), small text (letters can lose their shape, so retype text in your vector editor) or photos and painterly art (they come out posterized, not photo-real). One tip for everything: feed the largest, sharpest image you have — quality scales with input size.",
   },
   {
     q: "Can I use it on Linux or macOS?",

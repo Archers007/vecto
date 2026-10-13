@@ -87,6 +87,11 @@ After the build:
 export or copy SVG. Transparency is preserved. Tip: feed the highest-resolution image you
 have — trace quality scales with input size.
 
+**Best results:** flat-color graphics — logos, icons, badges, stickers, flags, flat illustrations, clean
+line drawings and scans — at the largest size you have.
+**Not a good fit:** smooth gradients and soft shadows (traced as bands of color), small text (letters
+can lose their shape — retype text in your vector editor), photos and painterly art (posterized).
+
 **CLI:**
 
 ```bash

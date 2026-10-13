@@ -24,6 +24,18 @@ What you can do:
 • Export SVG or PNG, or copy to the clipboard
 • Batch-convert from the command line with the included vecto CLI
 
+Works best with flat-color artwork:
+
+• Logos, icons, badges, stickers, flags and flat illustrations
+• Clean line drawings and scans
+• The largest, sharpest version of the image you have
+
+Not a good fit:
+
+• Smooth gradients and soft shadows: they are traced as bands of color
+• Small text: letters can lose their shape, so retype text in your vector editor
+• Photos and painterly art: they come out posterized, not photo-real
+
 Everything runs on your own computer — nothing is uploaded, and no account is
 needed. Vecto is a one-time purchase, not a subscription, and it's open source;
 buying it on the Store directly supports development.
@@ -77,6 +89,8 @@ Photo & video (or: Productivity; Photo & video fits a design tool better)
 - Privacy policy URL: `https://danielmevit.github.io/vecto/privacy/`
 
 ## Screenshots
+- Presentation set (planned after v0.4.3): include one honest "Best results / Not for" slide — DO: flat graphics
+  (logos, icons, stickers, flat illustrations, line art); DON'T: gradients, small text, photos.
 - `assets/screenshot.png` (1600×975) — the side-by-side compare view. Store wants
   PNG, min 768 px on the short side: compliant. One is enough to submit; a Nodes-view
   and a segmentation-view shot would make good additions later.
