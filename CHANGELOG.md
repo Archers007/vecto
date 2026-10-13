@@ -17,6 +17,20 @@
   message in the status line; a file that cannot be opened shows a warning and leaves the current
   image and result untouched; a damaged settings file can no longer stop the window from opening.
 
+### Engine: straight edges in JPEGs come out straight (VEC-22b)
+- JPEG compression shifts an edge slightly differently in every 8x8 block, so straight bars traced
+  with a gentle wave. On images detected as JPEG, each straight side between two corners is now
+  fitted to one line through all its points: 3% fewer wrong pixels on the JPEG test set and
+  visibly straight bars (e.g. the South Korea flag). Curved edges are left as they were.
+
+### Engine: translucent overlaps keep their shape at small sizes (VEC-21b)
+- Areas whose colour is a real blend of their neighbours (overlapping translucent shapes) are no
+  longer cut apart by the soft-edge clean-up at small sizes.
+
+### Faster start (VEC-24)
+- Hot loops are compiled fully optimised on first use and the command-line tool skips .NET's
+  profiling JIT tier: about 12% less total engine time on the test sets, identical results.
+
 ### CLI: JPEGs decoded exactly like the app (VEC-23)
 - The command-line tool now decodes JPEGs the same way as the Windows app (libjpeg's integer IDCT
   and smooth chroma upsampling, our own code, no new dependency), so a JPEG traces identically in
