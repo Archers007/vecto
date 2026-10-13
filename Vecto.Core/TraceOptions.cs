@@ -42,6 +42,8 @@ public sealed class EffectiveParams
     public double MergeThreshold;     // Oklab distance (black↔white ≈ 1.0)
     public int MinRegionArea;         // px; smaller regions are absorbed into a neighbor
     public bool MedianPrefilter;
+    public bool Noisy;
+    public double NoiseShare;
     public int SmoothIterations;
     public double SmoothLambda;
     public double SmoothClamp;        // px; max drift of a boundary point from the raster crack
