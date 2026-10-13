@@ -50,6 +50,71 @@ internal static class Segmenter
         return labels;
     }
 
+    /// <summary>Neighbourhood radius for spotting the two colours a fringe pixel blends.</summary>
+    public const int FringeRadius = 1;
+    /// <summary>Max Oklab distance from the A→B segment for a pixel to count as a blend.</summary>
+    public const float FringeMaxResidual = 0.05f;
+
+    /// <summary>
+    /// Relabels anti-aliasing fringes: a pixel whose colour is a blend of two other palette
+    /// colours A and B often sits closest to a third centre C, so soft edges trace as long
+    /// thin slivers of C — too big for <see cref="AbsorbSmallRegions"/> to eat. When the
+    /// pixel's Oklab colour lies close to the segment centre[A] → centre[B] (and closer to
+    /// that segment than to its own centre), it is really an A/B blend pixel and is
+    /// relabelled to A or B depending on which side of the midpoint it projects to. Reads
+    /// from a snapshot of the labels and writes into <paramref name="labels"/>, so the pass
+    /// is deterministic under Parallel.For.
+    /// </summary>
+    public static void RelabelFringe(RasterImage img, int[] labels, Lab[] centers, int w, int h, CancellationToken ct)
+    {
+        var px = img.Pixels;
+        var src = (int[])labels.Clone();
+        float maxR2 = FringeMaxResidual * FringeMaxResidual;
+        int span = 2 * FringeRadius + 1;
+        Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, y =>
+        {
+            Span<int> nb = stackalloc int[span * span];
+            for (int x = 0; x < w; x++)
+            {
+                int i = y * w + x, c = src[i];
+                if (c < 0) continue;
+                int n = 0;
+                for (int dy = -FringeRadius; dy <= FringeRadius; dy++)
+                {
+                    int yy = y + dy; if (yy < 0 || yy >= h) continue;
+                    for (int dx = -FringeRadius; dx <= FringeRadius; dx++)
+                    {
+                        int xx = x + dx; if (xx < 0 || xx >= w) continue;
+                        int l = src[yy * w + xx];
+                        if (l < 0 || l == c) continue;
+                        bool seen = false;
+                        for (int k = 0; k < n; k++) if (nb[k] == l) { seen = true; break; }
+                        if (!seen) nb[n++] = l;
+                    }
+                }
+                if (n < 2) continue;
+                int pi = i * 4;
+                var p = Oklab.FromRgb(px[pi], px[pi + 1], px[pi + 2]);
+                float dc = Oklab.DistSq(p, centers[c]);
+                float bestR = float.MaxValue; int bestL = -1;
+                for (int a = 0; a < n; a++)
+                    for (int b = a + 1; b < n; b++)
+                    {
+                        var A = centers[nb[a]]; var B = centers[nb[b]];
+                        float ux = B.L - A.L, uy = B.A - A.A, uz = B.B - A.B;
+                        float uu = ux * ux + uy * uy + uz * uz; if (uu < 1e-9f) continue;
+                        float t = ((p.L - A.L) * ux + (p.A - A.A) * uy + (p.B - A.B) * uz) / uu;
+                        if (t <= 0f || t >= 1f) continue;
+                        float qx = A.L + t * ux - p.L, qy = A.A + t * uy - p.A, qz = A.B + t * uz - p.B;
+                        float r = qx * qx + qy * qy + qz * qz;
+                        if (r < bestR) { bestR = r; bestL = t < 0.5f ? nb[a] : nb[b]; }
+                    }
+                if (bestL >= 0 && bestR <= maxR2 && bestR < dc)
+                    labels[i] = bestL;
+            }
+        });
+    }
+
     /// <summary>
     /// Repeatedly relabels regions smaller than <paramref name="minArea"/> to the neighbor
     /// they share the longest border with — this is what eats anti-aliasing fringes and dust.

@@ -71,6 +71,8 @@ public static class Tracer
         progress?.Invoke("segmentation", 0.25);
         sw.Restart();
         var labels = Segmenter.Label(img, centers, ct);
+        if (!p.ExactPalette)
+            Segmenter.RelabelFringe(img, labels, centers, w, h, ct);
         int opaque = 0;
         for (int i = 0; i < labels.Length; i++)
             if (labels[i] >= 0) opaque++;
