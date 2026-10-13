@@ -20,6 +20,10 @@
 - Exact ellipses (and better small rounded shapes): circles are fitted exactly, but ellipses fall back to Bezier
   approximations that wobble or flatten at 512 px inputs (cat eyes/cheeks/nose in the Store art); add an ellipse
   primitive like the circle fit, and check small rounded-triangle shapes.
+- Partly hidden circles (a sun behind waves, 512 px) trace as visible polygons instead of arcs — the circle fit must
+  also cover open arcs between junctions.
+- Near-identical light tints merge (cream #fff6e8 and white became one near-white colour on the Store cat) — the
+  palette merge threshold is too coarse for light colours.
 - pattern-tiles-style JPEGs: noisy smoothing per chain (fewer passes on curved chains) to recover the last realistic
   regression vs 0.4.2.
 
