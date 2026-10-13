@@ -90,7 +90,8 @@ have — trace quality scales with input size.
 **Best results:** flat-color graphics — logos, icons, badges, stickers, flags, flat illustrations, clean
 line drawings and scans — at the largest size you have.
 **Not a good fit:** smooth gradients and soft shadows (traced as bands of color), small text (letters
-can lose their shape — retype text in your vector editor), photos and painterly art (posterized).
+can lose their shape — retype text in your vector editor), small or low-resolution images (fine detail
+is lost — use the largest version you have), photos and painterly art (posterized).
 
 **CLI:**
 

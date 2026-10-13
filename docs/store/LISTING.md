@@ -34,6 +34,7 @@ Not a good fit:
 
 • Smooth gradients and soft shadows: they are traced as bands of color
 • Small text: letters can lose their shape, so retype text in your vector editor
+• Small or low-resolution images (thumbnails, icons around 128 px): fine detail is lost, so use the largest version you have
 • Photos and painterly art: they come out posterized, not photo-real
 
 Everything runs on your own computer — nothing is uploaded, and no account is
@@ -90,7 +91,7 @@ Photo & video (or: Productivity; Photo & video fits a design tool better)
 
 ## Screenshots
 - Presentation set (planned after v0.4.3): include one honest "Best results / Not for" slide — DO: flat graphics
-  (logos, icons, stickers, flat illustrations, line art); DON'T: gradients, small text, photos.
+  (logos, icons, stickers, flat illustrations, line art); DON'T: gradients, small text, small/low-res images, photos.
 - `assets/screenshot.png` (1600×975) — the side-by-side compare view. Store wants
   PNG, min 768 px on the short side: compliant. One is enough to submit; a Nodes-view
   and a segmentation-view shot would make good additions later.
