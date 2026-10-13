@@ -144,4 +144,28 @@ public class NoiseTests
         var resNoisy2 = Tracer.Trace(noisyImg, opt);
         Assert.Equal(resNoisy1.Diagnostics.Params.NoiseShare, resNoisy2.Diagnostics.Params.NoiseShare);
     }
+
+    [Fact]
+    public void NoisyImageAbsorbsSmallSpecks()
+    {
+        var cleanImg = CreateCleanImage();
+        // Add isolated 9 px (3x3) specks of a third colour (Red) inside flat white background areas
+        for (int dy = 0; dy < 3; dy++)
+        {
+            for (int dx = 0; dx < 3; dx++)
+            {
+                cleanImg.SetPixel(10 + dx, 80 + dy, Red);
+                cleanImg.SetPixel(80 + dx, 15 + dy, Red);
+            }
+        }
+        var noisyImg = AddNoise(cleanImg);
+        var opt = new TraceOptions { Style = ImageStyle.Blended };
+
+        var res = Tracer.Trace(noisyImg, opt);
+
+        Assert.True(res.Diagnostics.Params.Noisy);
+        Assert.Equal(14, res.Diagnostics.Params.MinRegionArea);
+        Assert.NotEmpty(res.Document.Regions);
+        Assert.All(res.Document.Regions, r => Assert.True(r.Area >= 14));
+    }
 }

@@ -24,6 +24,9 @@ internal static class NoiseEstimate
 {
     public const double NoisyShare = 0.03;
 
+    /// <summary>Specks smaller than this are absorbed on noisy inputs; Detail=Low's Blended size.</summary>
+    public const int NoisyMinRegionArea = 14;
+
     public static double InteriorNoiseShare(RasterImage img, int[] labels, int w, int h, CancellationToken ct)
     {
         if (w <= 0 || h <= 0 || labels.Length < w * h)
