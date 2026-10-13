@@ -8,44 +8,6 @@ namespace Vecto.Core;
 internal static class ChainGeometry
 {
     /// <summary>
-    /// Finds true corners on the raw staircase polyline by measuring the turn angle over a
-    /// k-vertex support window. k=3 distinguishes real corners (~90°) from the ±45° zigzag
-    /// of a diagonal pixel staircase (≤~37° at that support).
-    /// </summary>
-    public static List<int> DetectCorners(List<Vec2> pts, bool closed, double thresholdDeg, int k)
-    {
-        var result = new List<int>();
-        int n = closed ? pts.Count - 1 : pts.Count;
-        if (n < 2 * k + 1) return result;
-        int lo = closed ? 0 : k, hi = closed ? n - 1 : n - 1 - k;
-        var candidates = new List<(double Angle, int Index)>();
-        for (int i = lo; i <= hi; i++)
-        {
-            var v1 = pts[i] - pts[Wrap(i - k)];
-            var v2 = pts[Wrap(i + k)] - pts[i];
-            double l1 = v1.Length, l2 = v2.Length;
-            if (l1 < 1e-9 || l2 < 1e-9) continue;
-            double cos = Math.Clamp(v1.Dot(v2) / (l1 * l2), -1.0, 1.0);
-            double angle = Math.Acos(cos) * (180.0 / Math.PI);
-            if (angle >= thresholdDeg) candidates.Add((angle, i));
-        }
-        // greedy non-maximum suppression: strongest corners win, none closer than k apart
-        candidates.Sort((a, b) => a.Angle != b.Angle ? b.Angle.CompareTo(a.Angle) : a.Index.CompareTo(b.Index));
-        foreach (var (_, i) in candidates)
-            if (result.All(j => CyclicDist(i, j) > k))
-                result.Add(i);
-        result.Sort();
-        return result;
-
-        int Wrap(int i) => closed ? ((i % n) + n) % n : i;
-        int CyclicDist(int a, int b)
-        {
-            int d = Math.Abs(a - b);
-            return closed ? Math.Min(d, n - d) : d;
-        }
-    }
-
-    /// <summary>
     /// Clamped Laplacian smoothing: flattens the staircase into sub-pixel positions while
     /// never drifting more than <paramref name="clamp"/> px from the raster boundary.
     /// Chain endpoints and detected corners stay pinned to their exact lattice points.
@@ -105,21 +67,6 @@ internal static class ChainGeometry
         }
         for (int i = 0; i < n; i++) pts[i] = cur[i];
         if (closed) pts[n] = pts[0];
-    }
-
-    /// <summary>Turn angle (degrees) at one vertex over a ±k window; 0 when out of range.</summary>
-    public static double TurnAngleAt(List<Vec2> pts, bool closed, int i, int k)
-    {
-        int n = closed ? pts.Count - 1 : pts.Count;
-        if (n < 2 * k + 1) return 0;
-        if (!closed && (i < k || i > n - 1 - k)) return 0;
-        int Wrap(int j) => closed ? ((j % n) + n) % n : j;
-        var v1 = pts[i] - pts[Wrap(i - k)];
-        var v2 = pts[Wrap(i + k)] - pts[i];
-        double l1 = v1.Length, l2 = v2.Length;
-        if (l1 < 1e-9 || l2 < 1e-9) return 0;
-        double cos = Math.Clamp(v1.Dot(v2) / (l1 * l2), -1.0, 1.0);
-        return Math.Acos(cos) * (180.0 / Math.PI);
     }
 
     /// <summary>
@@ -192,6 +139,22 @@ internal static class ChainGeometry
         }
     }
 
+    /// <summary>
+    /// Fraction of the left region's colour in the source at <paramref name="q"/> (bilinear),
+    /// projected on the left↔right colour axis; NaN when the two colours are indistinguishable.
+    /// </summary>
+    public static double CoverLeft(RasterImage img, Rgba32? left, Rgba32? right, Vec2 q)
+    {
+        var (sr, sg, sb, sa) = Sample(img, q.X, q.Y);
+        if (left == null) return 1 - sa;
+        if (right == null) return sa;
+        var (l, r) = (left.Value, right.Value);
+        double ar = l.R - r.R, ag = l.G - r.G, ab = l.B - r.B;
+        double lenSq = ar * ar + ag * ag + ab * ab;
+        if (lenSq < 1) return double.NaN;
+        return Math.Clamp(((sr - r.R) * ar + (sg - r.G) * ag + (sb - r.B) * ab) / lenSq, 0, 1);
+    }
+
     static (double R, double G, double B, double A) Sample(RasterImage img, double x, double y)
     {
         double u = x - 0.5, v = y - 0.5;   // pixel centers sit at +0.5 in crack coordinates
@@ -215,13 +178,18 @@ internal static class ChainGeometry
         return (sr, sg, sb, sa / 255.0);
     }
 
+    /// <summary>Runs between two pins shorter than this are a thin feature's end (see CornerPolygon.Validate).</summary>
+    public const int ShortRun = 6;
+
     /// <summary>
     /// Sub-pixel corner relocation: each surviving corner moves from its lattice pin to the
     /// intersection of the two flank lines fitted to the refined geometry on either side.
     /// Flank directions within <paramref name="snapDeg"/> of a 45° multiple snap exactly —
     /// and both corners of a shared straight side fit the identical line, so snapped sides
-    /// come out mathematically straight. Chain-local, so planarity holds. Junctions (chain
-    /// endpoints) stay pinned: consistent relocation there needs a multi-chain solve (ROADMAP).
+    /// come out mathematically straight. A short side between two corners (a thin bar's end) runs
+    /// square to its long neighbour instead of trusting its few AA-bent points. Chain-local, so
+    /// planarity holds. Junctions (chain endpoints) stay pinned: consistent relocation there
+    /// needs a multi-chain solve (ROADMAP).
     /// </summary>
     public static void RelocateCorners(List<Vec2> pts, bool closed, IReadOnlyList<int> corners, double maxShift, double snapDeg)
     {
@@ -237,8 +205,13 @@ internal static class ChainGeometry
         var moved = new List<(int Index, Vec2 P)>(corners.Count);
         foreach (var c in corners)
         {
-            var left = FlankLine(c, -1);
-            var right = FlankLine(c, +1);
+            // the short end of a thin bar (fewer than ShortRun points) has too few, AA-bent
+            // points for a line of its own: it runs square to the long flank instead
+            bool shortL = Run(c, -1).Count < ShortRun, shortR = Run(c, +1).Count < ShortRun;
+            var left = shortL && !shortR ? null : FlankLine(c, -1);
+            var right = shortR && !shortL ? null : FlankLine(c, +1);
+            if (left == null && right is { } rf) left = ShortFlank(c, -1, rf);
+            if (right == null && left is { } lf) right = ShortFlank(c, +1, lf);
             if (left is not { } l || right is not { } r) continue;
             double cross = l.Dir.X * r.Dir.Y - l.Dir.Y * r.Dir.X;
             if (Math.Abs(cross) < 0.2) continue;   // near-parallel flanks — not a trustworthy corner
@@ -264,10 +237,8 @@ internal static class ChainGeometry
             if (proj.DistSq(p) <= maxShift * maxShift) moved.Add((w, proj));
         }
 
-        (Vec2 Pt, Vec2 Dir)? FlankLine(int c, int dir)
+        List<int> Run(int c, int dir)
         {
-            // the run from this corner to the next pin, excluding both pins and one vertex
-            // beside each (the smoothing-damped, AA-contaminated shoulders)
             var idx = new List<int>();
             for (int steps = 1; steps <= n; steps++)
             {
@@ -277,6 +248,37 @@ internal static class ChainGeometry
                 if (pins.Contains(w)) break;
                 idx.Add(w);
             }
+            return idx;
+        }
+
+        // A short side: through its points' centroid, square to the opposite flank unless its
+        // own chord clearly says otherwise. Never snapped — a few AA-bent shoulder points are no
+        // evidence for an exact 45° direction.
+        (Vec2 Pt, Vec2 Dir)? ShortFlank(int c, int dir, (Vec2 Pt, Vec2 Dir) other)
+        {
+            var idx = Run(c, dir);
+            if (idx.Count == 0 || idx.Count >= ShortRun) return null;
+            double mx = 0, my = 0;
+            foreach (var w in idx)
+            {
+                mx += pts[w].X;
+                my += pts[w].Y;
+            }
+            var centre = new Vec2(mx / idx.Count, my / idx.Count);
+            var square = new Vec2(-other.Dir.Y, other.Dir.X);
+            if (idx.Count >= 2)
+            {
+                var chord = (pts[idx[^1]] - pts[idx[0]]).Normalized();
+                if (Math.Abs(chord.Dot(square)) < Math.Cos(35 * Math.PI / 180)) return (centre, chord);
+            }
+            return (centre, square);
+        }
+
+        (Vec2 Pt, Vec2 Dir)? FlankLine(int c, int dir)
+        {
+            // the run from this corner to the next pin, excluding both pins and one vertex
+            // beside each (the smoothing-damped, AA-contaminated shoulders)
+            var idx = Run(c, dir);
             if (idx.Count >= 2) idx.RemoveAt(0);
             if (idx.Count >= 2) idx.RemoveAt(idx.Count - 1);
             if (idx.Count < 2) return null;

@@ -47,8 +47,8 @@ public sealed class EffectiveParams
     public int SmoothIterations;
     public double SmoothLambda;
     public double SmoothClamp;        // px; max drift of a boundary point from the raster crack
-    public double CornerThresholdDeg;
-    public int CornerSupport;         // vertices on each side used to measure the turn angle
+    public double CornerThresholdDeg; // turn between adjacent optimal-polygon edges (lattice) to become a corner
+    public double CornerKeepDeg;      // the same turn re-measured on the refined geometry to stay one
     public double SubpixelMaxShift;   // px; cap on normal-direction edge refinement
     public double CornerRelocateMaxShift; // px; a corner may leave its lattice pin by at most this
     public double AngleSnapDeg;       // flank directions this close to a 45° multiple snap exactly
