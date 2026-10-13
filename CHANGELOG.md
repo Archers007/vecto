@@ -1,6 +1,17 @@
 # Changelog — Vecto
 
-## Unreleased
+## v0.4.3 — 2026-10-13
+
+Tracing quality round. Against 0.4.2 on our test sets (wrong pixels vs the original artwork):
+icons/flags/emoji 15% fewer (128-px versions 10% fewer, JPEGs 24% fewer and 39% fewer nodes);
+realistic logos/charts/UI/drawings 3-18% fewer depending on size and compression; logos from
+real-world samples up to 38% fewer; photos, painted art and old scans unchanged. Large scans trace
+faster than in 0.4.2. Results are now identical on Windows, Linux and macOS builds, and the
+command-line tool reads JPEGs exactly like the app.
+
+Known limitations: a fine 4-colour tile pattern saved as JPEG traces slightly less accurately than
+in 0.4.2 (curved tile edges are smoothed a little too much); tiny round line ends on small icons
+can come out flat.
 
 ### Build: fixed and future-proofed (VEC-01, VEC-02)
 - The build broke on 2026-10-07 when five security advisories hit the image library the `vecto` CLI
