@@ -266,6 +266,58 @@ public class CliJpegTests
         Assert.True(report.Count == 0, string.Join("\n", report));
     }
 
+    static byte[] Fixture(string name) =>
+        Convert.FromBase64String(string.Concat(Fixtures[name].Base64.Where(c => !char.IsWhiteSpace(c))));
+
+    static void AssertSafeAndQuick(byte[] data)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var img = JpegDecoder.TryDecode(data); // must not throw: null or a decoded image
+        sw.Stop();
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(2), $"TryDecode took {sw.Elapsed}");
+        if (img != null) Assert.True(img.Width > 0 && img.Height > 0);
+    }
+
+    [Fact]
+    public void TruncatedJpeg_DoesNotThrow()
+    {
+        foreach (var name in Fixtures.Keys)
+        {
+            var full = Fixture(name);
+            AssertSafeAndQuick(full[..(full.Length / 2)]);
+        }
+    }
+
+    [Fact]
+    public void RandomBytesAfterSoi_DoNotThrow()
+    {
+        var rng = new Random(12345);
+        for (int i = 0; i < 200; i++)
+        {
+            var data = new byte[2 + rng.Next(1, 4096)];
+            rng.NextBytes(data);
+            data[0] = 0xFF; data[1] = 0xD8;
+            AssertSafeAndQuick(data);
+        }
+    }
+
+    [Fact]
+    public void HugeClaimedDimensions_RejectedBeforeAllocation()
+    {
+        var data = Fixture("s420_q75");
+        int sof = -1;
+        for (int i = 2; i + 1 < data.Length; i++)
+            if (data[i] == 0xFF && data[i + 1] == 0xC0) { sof = i; break; }
+        Assert.True(sof > 0, "fixture has no SOF0");
+        // SOF0: FF C0 len(2) precision(1) height(2) width(2)
+        data[sof + 5] = 60000 >> 8; data[sof + 6] = 60000 & 0xFF;
+        data[sof + 7] = 60000 >> 8; data[sof + 8] = 60000 & 0xFF;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        AssertSafeAndQuick(data);
+        Assert.Null(JpegDecoder.TryDecode(data));
+        Assert.True(GC.GetAllocatedBytesForCurrentThread() - before < 64L << 20, "allocated from the claimed size");
+    }
+
     static string FindBench()
     {
         for (var d = new DirectoryInfo(AppContext.BaseDirectory); d != null; d = d.Parent)
