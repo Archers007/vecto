@@ -65,7 +65,7 @@ internal static class NoiseEstimate
         var interiorPerRow = new long[blockRows];
         var roughPerRow = new long[blockRows];
 
-        Parallel.For(0, blockRows, new ParallelOptions { CancellationToken = ct }, br =>
+        Parallel.For(0, blockRows, new ParallelOptions { CancellationToken = ct }, [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)] (br) =>
         {
             long interior = 0;
             long rough = 0;
@@ -118,6 +118,7 @@ internal static class NoiseEstimate
     }
 
     /// <summary>True when every pixel of the 5×5 neighbourhood (clipped at the border) has the label at (x, y).</summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
     static bool IsInterior(int[] labels, int w, int h, int x, int y)
     {
         int c = labels[y * w + x];
@@ -133,6 +134,7 @@ internal static class NoiseEstimate
     }
 
     /// <summary>Largest per-channel (R, G, B) range of the 3×3 neighbourhood, clipped at the border.</summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
     static int Range3(byte[] px, int w, int h, int x, int y)
     {
         byte minR = 255, maxR = 0, minG = 255, maxG = 0, minB = 255, maxB = 0;
@@ -163,7 +165,7 @@ internal static class NoiseEstimate
         var interiorPerRow = new long[h];
         var noisyPerRow = new long[h];
 
-        Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, y =>
+        Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)] (y) =>
         {
             long interior = 0;
             long noisy = 0;

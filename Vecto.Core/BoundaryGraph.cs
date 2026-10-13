@@ -83,6 +83,7 @@ internal sealed class BoundaryTracer
         }
     }
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
     int Degree(int x, int y)
     {
         int d = 0;
@@ -101,6 +102,7 @@ internal sealed class BoundaryTracer
         _ => (-1, -1),
     };
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
     public BoundaryGraph Run(CancellationToken ct)
     {
         var chains = new List<Chain>();
@@ -128,6 +130,7 @@ internal sealed class BoundaryTracer
         return new BoundaryGraph { Chains = chains, RegionLoops = Assemble(chains) };
     }
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
     Chain Walk(int startX, int startY, int startDir)
     {
         var pts = new List<Vec2> { new(startX, startY) };
@@ -153,6 +156,7 @@ internal sealed class BoundaryTracer
         return new Chain { Points = pts, Left = left, Right = right, Closed = closed };
     }
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
     List<List<ChainUse>>[] Assemble(List<Chain> chains)
     {
         var loops = new List<List<ChainUse>>[_regionCount];
