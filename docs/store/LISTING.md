@@ -7,8 +7,8 @@ Vecto - Image to Vector
 
 ## Description* (required — this is the field with the red error)
 Vecto turns pictures into vector graphics — drop in a PNG or JPG logo, icon,
-illustration or scan, and get a clean SVG you can scale to any size, edit shape
-by shape, cut on a plotter, or print razor-sharp.
+illustration or scan, and get a clean SVG you can scale to any size and edit
+shape by shape.
 
 Open an image and watch it trace live, side by side with the original. Adjust
 the colors, style and detail until it looks right, then export the SVG or copy
@@ -19,7 +19,7 @@ What you can do:
 • Convert PNG, JPG, BMP or GIF into editable SVG
 • Compare original and vector side by side with synced zoom
 • Straight edges become true straight lines, circles become exact circles
-• No hairline gaps between shapes — clean prints and cuts at any size
+• No hairline gaps between shapes — clean edges at any size
 • Pick the number of colors, or let Vecto decide
 • Export SVG or PNG, or copy to the clipboard
 • Batch-convert from the command line with the included vecto CLI
@@ -57,7 +57,12 @@ computer. One-time purchase, no subscription; open source.
 - Command-line tool included for batch jobs
 
 ## What's new in this version
-Leave blank — Partner Center's own hint says to skip it on a first submission.
+Version 0.4.3 — cleaner traces
+• Cleaner results on logos, icons and flags, with fewer stray specks
+• Straight edges in JPG images now come out straight
+• Sharper corners on logos and lettering, while rounded tips stay round
+• Large scans trace faster
+• A short message instead of a crash when a file can't be opened or saved
 
 ## Keywords (up to 7, max 40 chars each, 21 words total — press Enter after each)
 png to svg
@@ -89,12 +94,13 @@ Photo & video (or: Productivity; Photo & video fits a design tool better)
   (No network code exists in the app; nothing leaves the machine.)
 - Privacy policy URL: `https://danielmevit.github.io/vecto/privacy/`
 
-## Screenshots
-- Presentation set (planned after v0.4.3): include one honest "Best results / Not for" slide — DO: flat graphics
-  (logos, icons, stickers, flat illustrations, line art); DON'T: gradients, small text, small/low-res images, photos.
-- `assets/screenshot.png` (1600×975) — the side-by-side compare view. Store wants
-  PNG, min 768 px on the short side: compliant. One is enough to submit; a Nodes-view
-  and a segmentation-view shot would make good additions later.
+## Screenshots (v0.4.3 presentation set — upload in this order)
+Folder: `Vecto/store-images/v0.4.3/` (outside the repo), 3840×2160 PNG, 1.5–2.7 MB each (Store: up to 10 desktop
+screenshots, PNG, 1366×768 to 3840×2160, under 50 MB).
+1. vecto-01-beauty — 2. vecto-02-app — 3. vecto-03-sharp-at-any-size — 4. vecto-04-lines-circles-no-gaps —
+5. vecto-05-private-offline — 6. vecto-06-best-results (the honest "Made for flat graphics" do/don't slide) —
+7. vecto-07-how-to — 8. vecto-08-style-guide — 9. vecto-09-detail-guide — 10. vecto-10-closing.
+Optional 16:9 hero image: vecto-hero-art-16x9-no-text.
 
 ## Age rating (IARC questionnaire)
 No violence, no user content, no data collection → rates EVERYONE / 3+ everywhere.
