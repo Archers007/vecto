@@ -8,7 +8,12 @@ public static class ImageIo
 {
     public static RasterImage Load(string path)
     {
-        using var image = Image.Load<ISRgba32>(path);
+        var bytes = File.ReadAllBytes(path);
+        // JPEG: decode like libjpeg-turbo / WIC so the CLI traces the same pixels as the app (ImageSharp's IDCT and
+        // chroma upsampling differ); files outside the decoder's scope fall through to ImageSharp
+        if (JpegDecoder.IsJpeg(bytes) && JpegDecoder.TryDecode(bytes) is { } jpeg)
+            return jpeg;
+        using var image = Image.Load<ISRgba32>(bytes);
         var buf = new byte[image.Width * image.Height * 4];
         image.CopyPixelDataTo(buf);
         return new RasterImage(image.Width, image.Height, buf);
