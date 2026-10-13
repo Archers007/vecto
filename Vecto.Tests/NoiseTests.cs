@@ -9,7 +9,8 @@ namespace Vecto.Tests;
 /// a) flat colour shapes with anti-aliased edges have interior noise share &lt; 0.03
 ///    and trace output identical to a trace with the detector's effect absent;
 /// b) the same image plus deterministic pseudo-random +/-6 level noise has share &gt;= 0.03;
-/// c) tracing the same input twice yields identical noise share.
+/// c) tracing the same input twice yields identical noise share;
+/// d) a soft shadow ramp that reaches the share is still not flagged (JPEG edge-block test, VEC-19).
 /// </summary>
 public class NoiseTests
 {
@@ -176,6 +177,47 @@ public class NoiseTests
         // Stronger smoothing parameters applied
         Assert.Equal(32, res.Diagnostics.Params.SmoothIterations);
         Assert.Equal(1.5, res.Diagnostics.Params.SmoothClamp);
+    }
+
+    /// <summary>
+    /// Flat art with a wide soft drop shadow (linear falloff, like a blurred shadow): the ramp makes
+    /// many interior pixels vary, but smoothly and independently of the 8x8 grid.
+    /// </summary>
+    static RasterImage CreateSoftShadowImage(int w = 240, int h = 240)
+    {
+        var img = new RasterImage(w, h);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                double bx = Math.Abs(x - 120) - 30;
+                double by = Math.Abs(y - 120) - 30;
+                double d = Math.Max(bx, by);
+                if (d <= 0)
+                {
+                    img.SetPixel(x, y, Blue);
+                }
+                else
+                {
+                    // 32 px shadow ramp from grey 120 to white (noise share ~0.08)
+                    byte v = (byte)Math.Round(120 + 135 * Math.Clamp(d / 32.0, 0.0, 1.0));
+                    img.SetPixel(x, y, new Rgba32(v, v, v, 255));
+                }
+            }
+        }
+        return img;
+    }
+
+    [Fact]
+    public void SoftShadowReachesNoiseShareButIsNotNoisy()
+    {
+        var res = Tracer.Trace(CreateSoftShadowImage(), new TraceOptions { Style = ImageStyle.Blended });
+
+        // The ramp alone trips the share test; the JPEG edge-block test must reject it
+        Assert.True(res.Diagnostics.Params.NoiseShare >= 0.03);
+        Assert.False(res.Diagnostics.Params.Textured);
+        Assert.False(res.Diagnostics.Params.Noisy);
+        Assert.Equal(8, res.Diagnostics.Params.SmoothIterations);
     }
 
     [Fact]

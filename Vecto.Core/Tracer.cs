@@ -86,7 +86,10 @@ public static class Tracer
         if (!p.ExactPalette)
             palette = MergeSimilarDisplays(img, labels, palette, w, h, minArea, ct);
         p.NoiseShare = NoiseEstimate.InteriorNoiseShare(img, labels, w, h, ct);
-        if (!p.Textured && p.NoiseShare >= NoiseEstimate.NoisyShare)
+        // The share alone also fires on downscaled text, blurred shadows and dithered gradients;
+        // only JPEG ringing fills the 8x8 blocks around edges, so that confirms it
+        if (!p.Textured && p.NoiseShare >= NoiseEstimate.NoisyShare
+            && NoiseEstimate.EdgeBlockRoughness(img, labels, w, h, ct) >= NoiseEstimate.JpegEdgeBlockShare)
         {
             p.Noisy = true;
             p.SmoothIterations = 32;
