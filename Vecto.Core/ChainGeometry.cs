@@ -299,7 +299,7 @@ internal static class ChainGeometry
             if (idx.Count >= 2)
             {
                 var chord = (pts[idx[^1]] - pts[idx[0]]).Normalized();
-                if (Math.Abs(chord.Dot(square)) < Math.Cos(35 * Math.PI / 180)) return (centre, chord);
+                if (Math.Abs(chord.Dot(square)) < DetMath.Cos(35 * Math.PI / 180)) return (centre, chord);
             }
             return (centre, square);
         }
@@ -351,11 +351,11 @@ internal static class ChainGeometry
                 cyy += dy * dy;
             }
             if (cxx + cyy < 1e-12) return null;
-            double theta = 0.5 * Math.Atan2(2 * cxy, cxx - cyy);
+            double theta = 0.5 * DetMath.Atan2(2 * cxy, cxx - cyy);
             double deg = theta * (180.0 / Math.PI);
             double snapped = Math.Round(deg / 45.0) * 45.0;
             if (Math.Abs(deg - snapped) <= snapDeg) theta = snapped * (Math.PI / 180.0);
-            return (new Vec2(mx, my), new Vec2(Math.Cos(theta), Math.Sin(theta)));
+            return (new Vec2(mx, my), new Vec2(DetMath.Cos(theta), DetMath.Sin(theta)));
         }
     }
 
@@ -417,8 +417,8 @@ internal static class ChainGeometry
                 cxy += dx * dy;
                 cyy += dy * dy;
             }
-            double theta = 0.5 * Math.Atan2(2 * cxy, cxx - cyy);
-            var dir = new Vec2(Math.Cos(theta), Math.Sin(theta));
+            double theta = 0.5 * DetMath.Atan2(2 * cxy, cxx - cyy);
+            var dir = new Vec2(DetMath.Cos(theta), DetMath.Sin(theta));
             var nrm = new Vec2(-dir.Y, dir.X);
             var c = new Vec2(mx, my);
             // residual r(s) along the line: max deviation and least-squares quadratic trend

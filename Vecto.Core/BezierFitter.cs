@@ -265,10 +265,10 @@ internal static class BezierFitter
 
         // unwrapped total sweep (handles full rings, where the chord is zero)
         double sweep = 0;
-        double prevAngle = Math.Atan2(d[first].Y - center.Y, d[first].X - center.X);
+        double prevAngle = DetMath.Atan2(d[first].Y - center.Y, d[first].X - center.X);
         for (int i = first + 1; i <= last; i++)
         {
-            double ang = Math.Atan2(d[i].Y - center.Y, d[i].X - center.X);
+            double ang = DetMath.Atan2(d[i].Y - center.Y, d[i].X - center.X);
             double delta = ang - prevAngle;
             while (delta > Math.PI) delta -= 2 * Math.PI;
             while (delta <= -Math.PI) delta += 2 * Math.PI;
@@ -281,10 +281,10 @@ internal static class BezierFitter
         var pEnd = d[last];
         double rStart = (pStart - center).Length;
         double rEnd = (pEnd - center).Length;
-        double angStart = Math.Atan2(pStart.Y - center.Y, pStart.X - center.X);
+        double angStart = DetMath.Atan2(pStart.Y - center.Y, pStart.X - center.X);
         int pieces = Math.Max(1, (int)Math.Ceiling(Math.Abs(sweep) / (Math.PI / 2)));
         double pieceSweep = sweep / pieces;
-        double k = 4.0 / 3.0 * Math.Tan(pieceSweep / 4);
+        double k = 4.0 / 3.0 * DetMath.Tan(pieceSweep / 4);
         var e0 = pStart;
         for (int i = 0; i < pieces; i++)
         {
@@ -293,9 +293,9 @@ internal static class BezierFitter
             double a1 = angStart + pieceSweep * (i + 1);
             double r0 = rStart + (rEnd - rStart) * (i / (double)pieces);
             double r1 = rStart + (rEnd - rStart) * t1;
-            var e1 = i == pieces - 1 ? pEnd : center + new Vec2(Math.Cos(a1), Math.Sin(a1)) * r1;
-            var t0v = new Vec2(-Math.Sin(a0), Math.Cos(a0));
-            var t1v = new Vec2(-Math.Sin(a1), Math.Cos(a1));
+            var e1 = i == pieces - 1 ? pEnd : center + new Vec2(DetMath.Cos(a1), DetMath.Sin(a1)) * r1;
+            var t0v = new Vec2(-DetMath.Sin(a0), DetMath.Cos(a0));
+            var t1v = new Vec2(-DetMath.Sin(a1), DetMath.Cos(a1));
             output.Add(new CubicBezier(e0, e0 + t0v * (k * r0), e1 - t1v * (k * r1), e1));
             e0 = e1;
         }
