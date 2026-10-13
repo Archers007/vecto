@@ -207,23 +207,27 @@ internal static class CornerPolygon
     /// principal directions of the points along each edge; the corner stays when (1) their turn
     /// reaches <paramref name="minTurnDeg"/> and (2) the source image actually fills the corner:
     /// at the flank-line intersection the convex side's coverage is about interior angle / 360
-    /// for a real corner, but near zero where a curve (a small circle) cuts across it.
+    /// for a real corner, but near zero where a curve (a small circle) cuts across it. An acute
+    /// tip's expected coverage is near zero too, so there (3) the anti-aliased pixels around the
+    /// apex must fit a sharp wedge better than a rounded tip (<see cref="RoundTip"/>).
     /// </summary>
     public static bool Validate(List<Vec2> pts, bool closed, IReadOnlyList<int> corners, int c, double minTurnDeg,
         RasterImage img, Rgba32? left, Rgba32? right)
     {
         int n = closed ? pts.Count - 1 : pts.Count;
         var pinned = new HashSet<int>(corners);
-        var (pIn, dIn, nIn) = Flank(-1);
-        var (pOut, dOut, nOut) = Flank(+1);
-        if (nIn == 0 || nOut == 0) return false;
-        dIn = -dIn;   // pointing into the corner
+        var fIn = Flank(-1);
+        var fOut = Flank(+1);
+        if (fIn.Count == 0 || fOut.Count == 0) return false;
+        var (pIn, pOut) = (fIn.Pt, fOut.Pt);
+        var dIn = -fIn.Dir;   // pointing into the corner
+        var dOut = fOut.Dir;
         double turn = Turn(dIn, dOut);
-        bool shortIn = nIn < ChainGeometry.ShortRun, shortOut = nOut < ChainGeometry.ShortRun;
+        bool shortIn = fIn.Count < ChainGeometry.ShortRun, shortOut = fOut.Count < ChainGeometry.ShortRun;
         // both edges short: a small round shape's polygon is the usual suspect — demand more
-        double need = nIn < 8 && nOut < 8 ? 0.6 : 0.3;
+        double need = fIn.Count < 8 && fOut.Count < 8 ? 0.6 : 0.3;
         if (shortIn == shortOut)
-            return turn >= minTurnDeg && Filled(dIn, dOut, turn, need);
+            return turn >= minTurnDeg && Filled(dIn, dOut, turn, need) && !RoundedTip();
         // a thin bar's end: two to five AA-bent points whose own direction is mostly noise, so
         // the lattice polygon's turn stands and the image decides — with a square end, or the
         // end's own direction when that is a clear corner too
@@ -234,44 +238,153 @@ internal static class CornerPolygon
         if (Filled(shortIn ? sq : dIn, shortIn ? dOut : sq, 90, 0.3)) return true;
         return turn >= minTurnDeg && Filled(dIn, dOut, turn, need);
 
+        // an acute tip (interior angle under 90°) whose pixels say it is rounded
+        bool RoundedTip()
+        {
+            if (turn <= MinTipTurnDeg || (left == null && right == null)) return false;
+            if (Apex(dIn, dOut, 5) is not { } apex) return false;
+            return RoundTip(img, left, right, apex, -dIn, dOut, fIn.Reach, fIn.Pinned, fOut.Reach, fOut.Pinned, pts[c]);
+        }
+
+        // the apex of these two flank lines, or null when they are near-parallel or meet
+        // implausibly far from the corner point
+        Vec2? Apex(Vec2 din, Vec2 dout, double maxDist = 2)
+        {
+            double cross = Cross(din, dout);
+            if (Math.Abs(cross) < 0.2) return null;
+            double t = Cross(pOut - pIn, dout) / cross;
+            var apex = pIn + din * t;
+            return apex.DistSq(pts[c]) > maxDist * maxDist ? null : apex;
+        }
+
         // does the source fill the corner of these two flank lines? At their intersection the
         // wedge side's coverage is about (180° − turn) / 360° for a real corner
         bool Filled(Vec2 din, Vec2 dout, double turnDeg, double need)
         {
             if (left == null && right == null) return true;
-            double cross = Cross(din, dout);
-            if (Math.Abs(cross) < 0.2) return true;
-            double t = Cross(pOut - pIn, dout) / cross;
-            var apex = pIn + din * t;
-            if (apex.DistSq(pts[c]) > 4) return true;   // implausible apex: no evidence either way
+            if (Apex(din, dout) is not { } apex) return true;   // no evidence either way
             double coverLeft = ChainGeometry.CoverLeft(img, left, right, apex);
             if (double.IsNaN(coverLeft)) return true;
             // turning left (cross < 0 in y-down coordinates) puts the wedge on the left side
-            double cover = cross < 0 ? coverLeft : 1 - coverLeft;
+            double cover = Cross(din, dout) < 0 ? coverLeft : 1 - coverLeft;
             double expected = (180 - turnDeg) / 360;
             return cover >= need * expected;
         }
 
         // centroid + direction (outward) of the run from the corner to the next corner, at most
-        // ten points; the count is the run length before the shoulder is dropped
-        (Vec2 Pt, Vec2 Dir, int Count) Flank(int dir)
+        // ten points; the count is the run length before the shoulder is dropped, the reach the
+        // run's farthest distance from the corner, pinned whether another corner ends it
+        (Vec2 Pt, Vec2 Dir, int Count, double Reach, bool Pinned) Flank(int dir)
         {
             const int cap = 10;
             var span = new List<Vec2>();
+            bool atPin = false;
             for (int s = 1; s <= cap; s++)
             {
                 int j = c + dir * s;
                 int w = closed ? ((j % n) + n) % n : j;
-                if (w < 0 || w >= n || pinned.Contains(w)) break;
+                if (w < 0 || w >= n) break;
+                if (pinned.Contains(w))
+                {
+                    atPin = true;
+                    break;
+                }
                 span.Add(pts[w]);
                 if (!closed && (w == 0 || w == n - 1)) break;
             }
             int count = span.Count;
-            if (count == 0) return (pts[c], new Vec2(0, 0), 0);
+            if (count == 0) return (pts[c], new Vec2(0, 0), 0, 0, true);
+            double reach = Math.Sqrt(span.Max(q => q.DistSq(pts[c]))) + (atPin ? 1 : 0);
             if (span.Count >= 4) span.RemoveAt(0);   // the AA-bent shoulder
             if (span.Count < 2) span.Insert(0, pts[c]);
             var (pt, d) = PrincipalLine(span);
-            return (pt, d, count);
+            return (pt, d, count, reach, atPin);
+        }
+    }
+
+    /// <summary>Only acute tips (interior angle under 90°) get the rounded-tip test.</summary>
+    const double MinTipTurnDeg = 90;
+    /// <summary>Tip radii tried against the sharp wedge (px).</summary>
+    static readonly double[] TipRadii = { 0.5, 0.8, 1.1, 1.5, 2, 2.6, 3.3 };
+
+    /// <summary>
+    /// Sharp corner or rounded tip? Both hypotheses are rendered with box-filter anti-aliasing
+    /// (4×4 per pixel) from the same two flank lines — the wedge between rays
+    /// <paramref name="e1"/> and <paramref name="e2"/> from <paramref name="apex"/>, and that
+    /// wedge with its tip replaced by an inscribed arc of radius r — and compared with the source
+    /// pixels around the apex. A real corner fits r = 0 best; a narrow rounded tip (a tapering
+    /// stripe's end) fits a clearly better r. Pixels whose colour is no blend of the two regions
+    /// are skipped. The arc's tangent points must stay on the flanks: at most a flank's reach,
+    /// or half of it when another corner ends that flank (that corner may round too).
+    /// </summary>
+    static bool RoundTip(RasterImage img, Rgba32? left, Rgba32? right, Vec2 apex, Vec2 e1, Vec2 e2,
+        double reach1, bool pinned1, double reach2, bool pinned2, Vec2 corner)
+    {
+        e1 = e1.Normalized();
+        e2 = e2.Normalized();
+        double cross = Cross(e1, e2);
+        if (Math.Abs(cross) < 0.2) return false;
+        // the wedge lies on the left of the chain when the path turns left (cross(in, out) =
+        // cross(−e1, e2) < 0 in y-down coordinates)
+        bool wedgeLeft = -cross < 0;
+        double sgn = Math.Sign(cross);
+        double theta = Math.Acos(Math.Clamp(e1.Dot(e2), -1, 1));
+        double half = theta / 2, sinH = Math.Sin(half), tanH = Math.Tan(half);
+        var bis = (e1 + e2).Normalized();
+        double tMax = Math.Min(pinned1 ? reach1 / 2 : reach1, pinned2 ? reach2 / 2 : reach2);
+
+        // window: pixels around the apex and the corner point, not beyond either flank's reach
+        const double radius = 3.2;
+        var mid = (apex + corner) * 0.5;
+        double rad = radius + Math.Sqrt(apex.DistSq(corner)) / 2;
+        var obs = new List<(double X, double Y, double Cover)>();
+        for (int y = (int)Math.Floor(mid.Y - rad); y <= (int)Math.Ceiling(mid.Y + rad); y++)
+            for (int x = (int)Math.Floor(mid.X - rad); x <= (int)Math.Ceiling(mid.X + rad); x++)
+            {
+                var q = new Vec2(x + 0.5, y + 0.5);
+                if (q.DistSq(mid) > rad * rad) continue;
+                var rel = q - apex;
+                if (rel.Dot(e1) > reach1 + 0.5 || rel.Dot(e2) > reach2 + 0.5) continue;
+                double cl = ChainGeometry.PixelCoverLeft(img, left, right, x, y);
+                if (double.IsNaN(cl)) continue;
+                obs.Add((x, y, wedgeLeft ? cl : 1 - cl));
+            }
+        if (obs.Count < 6) return false;
+
+        double sharp = Residual(0);
+        double best = double.MaxValue, bestR = 0;
+        foreach (var r in TipRadii)
+        {
+            if (r / tanH > tMax) break;
+            double res = Residual(r);
+            if (res < best)
+            {
+                best = res;
+                bestR = r;
+            }
+        }
+        return bestR >= 0.8 && best < 0.7 * sharp - 0.02;
+
+        double Residual(double r)
+        {
+            var centre = apex + bis * (r / sinH);
+            double cut = r / tanH * Math.Cos(half);   // depth of the tangent points along the bisector
+            double sum = 0;
+            foreach (var (x, y, cover) in obs)
+            {
+                int hit = 0;
+                for (int sy = 0; sy < 4; sy++)
+                    for (int sx = 0; sx < 4; sx++)
+                    {
+                        var q = new Vec2(x + (sx + 0.5) / 4, y + (sy + 0.5) / 4) - apex;
+                        if (sgn * Cross(e1, q) < 0 || sgn * Cross(q, e2) < 0) continue;
+                        if (r > 0 && q.Dot(bis) < cut && (q + apex).DistSq(centre) > r * r) continue;
+                        hit++;
+                    }
+                double d = hit / 16.0 - cover;
+                sum += d * d;
+            }
+            return sum;
         }
     }
 

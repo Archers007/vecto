@@ -6,7 +6,8 @@ namespace Vecto.Tests;
 
 /// <summary>
 /// Structural corner stage (CornerPolygon): thin-bar ends keep both corners and a straight end,
-/// circles and shallow staircases get none. Inputs are anti-aliased (8×8 supersampled).
+/// circles and shallow staircases get none, narrow rounded tips stay round while true acute
+/// wedges stay sharp. Inputs are anti-aliased (8×8 supersampled).
 /// </summary>
 public class CornerTests
 {
@@ -138,5 +139,65 @@ public class CornerTests
             Assert.True(truth.Min(c => Math.Sqrt(j.DistSq(c))) <= 1.5,
                 $"corner at ({j.X:0.0},{j.Y:0.0}) is on a long side, not at a bar corner");
         Assert.True(joins.Count <= 4, $"{joins.Count} corners");
+    }
+
+    /// <summary>
+    /// A tapered stripe (convex hull of a 1-px tip disk and a 7-px base disk, ~23° taper) — the
+    /// low-resolution rocket stripe: the tip is round, not one acute corner.
+    /// </summary>
+    [Fact]
+    public void TaperedStripe_RoundedTip_NoCorner()
+    {
+        var tip = new Vec2(82.3, 44.6);
+        var tail = new Vec2(58.0, 62.2);
+        const double rTip = 1, rTail = 7;
+        var axis = tail - tip;
+        var img = Render(128, (x, y) =>
+        {
+            var p = new Vec2(x, y);
+            // inside iff some disk along the axis (radius interpolated) holds p; the excess
+            // |p − c(t)| − r(t) is convex in t, so a ternary search finds its minimum
+            double lo = 0, hi = 1;
+            for (int i = 0; i < 40; i++)
+            {
+                double m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+                if (Excess(m1) < Excess(m2)) hi = m2; else lo = m1;
+            }
+            return Excess((lo + hi) / 2) <= 0;
+
+            double Excess(double t) => Math.Sqrt(p.DistSq(tip + axis * t)) - (rTip + (rTail - rTip) * t);
+        });
+        var loop = InkLoop(Tracer.Trace(img, Options).Document);
+        var joins = SharpJoins(loop);
+        var end = tip - axis.Normalized() * rTip;
+        _out.WriteLine($"{loop.Count} segs, joins " + string.Join(" ", joins.Select(j => $"({j.X:0.00},{j.Y:0.00})")));
+        Assert.DoesNotContain(joins, j => Math.Sqrt(j.DistSq(end)) <= 4);
+    }
+
+    /// <summary>A true acute wedge (30° tip, straight sides): the tip stays one sharp corner.</summary>
+    [Fact]
+    public void AcuteWedge_TipStaysSharp()
+    {
+        var apex = new Vec2(84.3, 40.7);
+        var dir = new Vec2(-0.8, 0.6);   // into the wedge
+        double half = 15 * Math.PI / 180;
+        var a = apex + Rotate(dir, half) * 40;
+        var b = apex + Rotate(dir, -half) * 40;
+        var img = Render(128, (x, y) =>
+        {
+            var p = new Vec2(x, y);
+            double s1 = Side(apex, a, p), s2 = Side(a, b, p), s3 = Side(b, apex, p);
+            return (s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0);
+        });
+        var loop = InkLoop(Tracer.Trace(img, Options).Document);
+        var joins = SharpJoins(loop);
+        _out.WriteLine($"{loop.Count} segs, joins " + string.Join(" ", joins.Select(j => $"({j.X:0.00},{j.Y:0.00})")));
+        double best = joins.Count == 0 ? double.MaxValue : joins.Min(j => Math.Sqrt(j.DistSq(apex)));
+        Assert.True(best <= 1.0, $"no corner within 1 px of the apex (nearest {best:0.00})");
+        Assert.Equal(1, joins.Count(j => Math.Sqrt(j.DistSq(apex)) <= 4));
+
+        static Vec2 Rotate(Vec2 v, double t) => new(v.X * Math.Cos(t) - v.Y * Math.Sin(t), v.X * Math.Sin(t) + v.Y * Math.Cos(t));
+        // the triangle apex → a → b winds one way; same-sign cross products mean inside
+        static double Side(Vec2 p0, Vec2 p1, Vec2 q) => (p1.X - p0.X) * (q.Y - p0.Y) - (p1.Y - p0.Y) * (q.X - p0.X);
     }
 }

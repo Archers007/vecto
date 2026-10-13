@@ -155,6 +155,28 @@ internal static class ChainGeometry
         return Math.Clamp(((sr - r.R) * ar + (sg - r.G) * ag + (sb - r.B) * ab) / lenSq, 0, 1);
     }
 
+    /// <summary>
+    /// Pixel (<paramref name="x"/>, <paramref name="y"/>)'s left-region coverage on the left↔right colour
+    /// axis; NaN outside the image, for indistinguishable colours, or when the pixel's colour lies
+    /// well off that axis (a third colour, not a blend of the two).
+    /// </summary>
+    public static double PixelCoverLeft(RasterImage img, Rgba32? left, Rgba32? right, int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= img.Width || y >= img.Height) return double.NaN;
+        int pi = (y * img.Width + x) * 4;
+        double sa = img.Pixels[pi + 3] / 255.0;
+        if (left == null) return 1 - sa;
+        if (right == null) return sa;
+        var (l, r) = (left.Value, right.Value);
+        double ar = l.R - r.R, ag = l.G - r.G, ab = l.B - r.B;
+        double lenSq = ar * ar + ag * ag + ab * ab;
+        if (lenSq < 1) return double.NaN;
+        double dr = img.Pixels[pi] - r.R, dg = img.Pixels[pi + 1] - r.G, db = img.Pixels[pi + 2] - r.B;
+        double f = Math.Clamp((dr * ar + dg * ag + db * ab) / lenSq, 0, 1);
+        double er = dr - f * ar, eg = dg - f * ag, eb = db - f * ab;
+        return er * er + eg * eg + eb * eb > 0.0625 * lenSq ? double.NaN : f;
+    }
+
     static (double R, double G, double B, double A) Sample(RasterImage img, double x, double y)
     {
         double u = x - 0.5, v = y - 0.5;   // pixel centers sit at +0.5 in crack coordinates
