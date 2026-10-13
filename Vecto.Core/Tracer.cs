@@ -87,6 +87,15 @@ public static class Tracer
             p.Noisy = true;
             p.SmoothIterations = 32;
             p.SmoothClamp = 1.5;
+
+            // JPEG ringing leaves 6-13 px blobs along edges: clean them up like Detail=Low does
+            int noisyMin = Math.Min(Math.Max(p.MinRegionArea, NoiseEstimate.NoisyMinRegionArea), Math.Max(1, opaque / 4));
+            if (noisyMin > minArea)
+            {
+                Segmenter.AbsorbSmallRegions(labels, w, h, noisyMin, ct);
+                palette = CompactPalette(img, labels, palette.Count);
+                p.MinRegionArea = noisyMin;
+            }
         }
         var seg = Segmenter.Components(labels, w, h);
         long segmentMs = sw.ElapsedMilliseconds;
