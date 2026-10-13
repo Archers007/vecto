@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Vecto.Core;
 
 /// <summary>
@@ -20,6 +22,7 @@ internal static class CornerPolygon
     /// Polygon vertex indices (ascending, into the lattice chain). Open chains always include
     /// both endpoints; closed chains (first == last point) list each vertex once.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static List<int> OptimalPolygon(List<Vec2> pts, bool closed)
     {
         int n = closed ? pts.Count - 1 : pts.Count;
@@ -45,7 +48,7 @@ internal static class CornerPolygon
 
         if (!closed)
         {
-            var path = ShortestPath(0, n - 1, i => MaxEnd(i));
+            var path = ShortestPath(0, n - 1);
             result.AddRange(path!.Value.Vertices);
             return result;
         }
@@ -60,7 +63,7 @@ internal static class CornerPolygon
         for (int k = 0; k < starts; k++)
         {
             int st = s0 + k;
-            var path = ShortestPath(st, st + n, i => MaxEnd(i));
+            var path = ShortestPath(st, st + n);
             if (path is not { } p) continue;
             if (best is not { } b || p.Count < b.Count || (p.Count == b.Count && p.Penalty < b.Penalty - 1e-9))
                 best = p;
@@ -81,7 +84,8 @@ internal static class CornerPolygon
             return far >= n - 1 ? n - 1 : far - 1;
         }
 
-        (int Count, double Penalty, List<int> Vertices)? ShortestPath(int from, int to, Func<int, int> maxEnd)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        (int Count, double Penalty, List<int> Vertices)? ShortestPath(int from, int to)
         {
             int m = to - from;
             var cnt = new int[m + 1];
@@ -93,7 +97,7 @@ internal static class CornerPolygon
             {
                 if (cnt[a] == int.MaxValue) continue;
                 int i = from + a;
-                int hi = Math.Min(maxEnd(i), to);
+                int hi = Math.Min(MaxEnd(i), to);
                 for (int j = i + 1; j <= hi; j++)
                 {
                     int bIdx = j - from;
@@ -126,6 +130,7 @@ internal static class CornerPolygon
     /// moves (within ±2 steps, between its neighbours) to the point farthest from the chord of
     /// its two neighbours; <paramref name="poly"/> is updated to match.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static List<int> Corners(List<Vec2> pts, bool closed, List<int> poly, double minTurnDeg)
     {
         var result = new List<int>();
@@ -182,6 +187,7 @@ internal static class CornerPolygon
     }
 
     /// <summary>Centroid and principal direction (oriented first → last) of a point run.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     static (Vec2 Pt, Vec2 Dir) PrincipalLine(List<Vec2> span)
     {
         double mx = 0, my = 0;
@@ -211,6 +217,7 @@ internal static class CornerPolygon
     /// tip's expected coverage is near zero too, so there (3) the anti-aliased pixels around the
     /// apex must fit a sharp wedge better than a rounded tip (<see cref="RoundTip"/>).
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static bool Validate(List<Vec2> pts, bool closed, IReadOnlyList<int> corners, int c, double minTurnDeg,
         RasterImage img, Rgba32? left, Rgba32? right)
     {
@@ -317,6 +324,7 @@ internal static class CornerPolygon
     /// are skipped. The arc's tangent points must stay on the flanks: at most a flank's reach,
     /// or half of it when another corner ends that flank (that corner may round too).
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     static bool RoundTip(RasterImage img, Rgba32? left, Rgba32? right, Vec2 apex, Vec2 e1, Vec2 e2,
         double reach1, bool pinned1, double reach2, bool pinned2, Vec2 corner)
     {
@@ -365,6 +373,7 @@ internal static class CornerPolygon
         }
         return bestR >= 0.8 && best < 0.7 * sharp - 0.02;
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         double Residual(double r)
         {
             var centre = apex + bis * (r / sinH);
@@ -404,6 +413,7 @@ internal static class CornerPolygon
     /// Incremental: the feasible lines y = a·x + c (|a| ≤ 1, and the steep mirror x = a·y + c)
     /// form a convex region in (a, c) per slope sign; each point clips it by two half-planes.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     static int[] ReachLengths(double[] px, double[] py, int n, bool closed)
     {
         var reach = new int[n];
@@ -464,18 +474,29 @@ internal static class CornerPolygon
         }
 
         /// <summary>Sutherland–Hodgman clip by α·a + β·c ≤ γ (closed, tiny slack).</summary>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void Clip(double alpha, double beta, double gamma, Region scratch)
         {
-            if (Count == 0) return;
+            int count = Count;
+            if (count == 0) return;
             const double eps = 1e-6;   // lattice lines touch the ½-px band exactly all the time
+            var ia = _a;
+            var ic = _c;
+            // usual case: every vertex is inside, and the loop below would copy them unchanged
+            if (count < Cap)
+            {
+                int k = 0;
+                while (k < count && alpha * ia[k] + beta * ic[k] - gamma <= eps) k++;
+                if (k == count) return;
+            }
             int m = 0;
             var oa = scratch._a;
             var oc = scratch._c;
-            double pa = _a[Count - 1], pc = _c[Count - 1];
+            double pa = ia[count - 1], pc = ic[count - 1];
             double fp = alpha * pa + beta * pc - gamma;
-            for (int i = 0; i < Count && m < Cap - 1; i++)
+            for (int i = 0; i < count && m < Cap - 1; i++)
             {
-                double qa = _a[i], qc = _c[i];
+                double qa = ia[i], qc = ic[i];
                 double fq = alpha * qa + beta * qc - gamma;
                 bool inP = fp <= eps, inQ = fq <= eps;
                 if (inP != inQ)
@@ -495,8 +516,10 @@ internal static class CornerPolygon
                 pc = qc;
                 fp = fq;
             }
-            (_a, scratch._a) = (scratch._a, _a);
-            (_c, scratch._c) = (scratch._c, _c);
+            _a = oa;
+            _c = oc;
+            scratch._a = ia;
+            scratch._c = ic;
             Count = m;
         }
     }
@@ -530,6 +553,7 @@ internal static class CornerPolygon
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public double Penalty(int i, int j)
         {
             double ex = _px[j] - _px[i], ey = _py[j] - _py[i];
