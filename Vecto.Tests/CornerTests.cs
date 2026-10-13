@@ -200,4 +200,73 @@ public class CornerTests
         // the triangle apex → a → b winds one way; same-sign cross products mean inside
         static double Side(Vec2 p0, Vec2 p1, Vec2 q) => (p1.X - p0.X) * (q.Y - p0.Y) - (p1.Y - p0.Y) * (q.X - p0.X);
     }
+
+    /// <summary>
+    /// A wide bar whose long edges wave block by block like JPEG ringing (sub-pixel shift per 8×8
+    /// block, plus block-wise colour noise so the input is flagged noisy): each long edge comes out
+    /// as one straight line segment between its two corners.
+    /// </summary>
+    [Fact]
+    public void NoisyBarEdge_IsOneStraightSegment()
+    {
+        var rnd = new Random(7);
+        var wave = new double[16, 16];
+        var tint = new int[16, 16];
+        for (int by = 0; by < 16; by++)
+            for (int bx = 0; bx < 16; bx++)
+            {
+                wave[bx, by] = rnd.NextDouble() * 0.5 - 0.25;
+                tint[bx, by] = rnd.Next(-6, 7);
+            }
+        double t = 8 * Math.PI / 180;
+        var u = new Vec2(Math.Cos(t), Math.Sin(t));
+        var v = new Vec2(-u.Y, u.X);
+        var c = new Vec2(64.3, 63.8);
+        const double length = 90, width = 36;
+        var clean = Render(128, (x, y) =>
+        {
+            var d = new Vec2(x, y) - c;
+            return Math.Abs(d.Dot(u)) <= length / 2 && Math.Abs(d.Dot(v)) <= width / 2 + wave[(int)x / 8, (int)y / 8];
+        });
+        // blocks the edge crosses ring across their whole area, like quantised DCT blocks
+        var edgeBlock = new bool[16, 16];
+        for (int y = 0; y < 128; y++)
+            for (int x = 0; x < 128; x++)
+                if (clean.GetPixel(x, y).R != clean.GetPixel(x / 8 * 8, y / 8 * 8).R) edgeBlock[x / 8, y / 8] = true;
+        var img = new RasterImage(128, 128);
+        for (int y = 0; y < 128; y++)
+            for (int x = 0; x < 128; x++)
+            {
+                var q = clean.GetPixel(x, y);
+                int k = tint[x / 8, y / 8]
+                    + (edgeBlock[x / 8, y / 8] ? (int)Math.Round(5 * Math.Cos(Math.PI * (x % 8 + 0.5) / 4) * Math.Cos(Math.PI * (y % 8 + 0.5) / 4)) : 0);
+                img.SetPixel(x, y, new Rgba32((byte)Math.Clamp(q.R + k, 0, 255), (byte)Math.Clamp(q.G + k, 0, 255),
+                    (byte)Math.Clamp(q.B + k, 0, 255), 255));
+            }
+        var res = Tracer.Trace(img, Options);
+        _out.WriteLine($"noise share {res.Diagnostics.Params.NoiseShare:0.000}");
+        Assert.True(res.Diagnostics.Params.Noisy, "test input must take the noisy (JPEG) path");
+        var loop = InkLoop(res.Document);
+        _out.WriteLine($"{loop.Count} segs, joins " + string.Join(" ", SharpJoins(loop).Select(j => $"({j.X:0.00},{j.Y:0.00})")));
+        foreach (double side in new[] { 1.0, -1.0 })
+        {
+            // segments whose midpoint lies on this long edge
+            var onEdge = loop.Where(b => OnEdge((b.P0 + b.P1 * 3 + b.P2 * 3 + b.P3) * 0.125)).ToList();
+            Assert.Single(onEdge);
+            var seg = onEdge[0];
+            var dir = (seg.P3 - seg.P0).Normalized();
+            Assert.True((seg.P3 - seg.P0).Length >= length - 12, $"edge segment only {(seg.P3 - seg.P0).Length:0.0} px long");
+            foreach (var q in new[] { seg.P1, seg.P2 })
+            {
+                var r = q - seg.P0;
+                Assert.True(Math.Abs(r.X * dir.Y - r.Y * dir.X) <= 0.05, "edge segment bends");
+            }
+
+            bool OnEdge(Vec2 p)
+            {
+                var d = p - c;
+                return Math.Abs(d.Dot(v) - side * width / 2) <= 1.5 && Math.Abs(d.Dot(u)) <= length / 2 - 2;
+            }
+        }
+    }
 }
