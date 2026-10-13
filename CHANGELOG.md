@@ -17,6 +17,24 @@
   message in the status line; a file that cannot be opened shows a warning and leaves the current
   image and result untouched; a damaged settings file can no longer stop the window from opening.
 
+### Engine: soft edges no longer become slivers of a third colour (VEC-10b)
+- A pixel on the soft edge between two colours has an in-between colour, and it was often given to
+  a third palette colour that happened to be closest — so edges traced as thin slivers: a grey strip
+  along a dark camera body, pink smudges around a lion's muzzle, grey bumps along black icon
+  strokes. Such pixels are now recognised as a blend of their two neighbouring colours and go to
+  the nearer one; a genuine thin line in an unrelated colour is kept. Quality test set: clean
+  images 5.5% fewer wrong pixels and 7% fewer nodes, small (128 px) images 6% / 6%; the worst small
+  case (camera emoji) 31% fewer wrong pixels.
+
+### Engine: JPEG inputs detected and smoothed harder (VEC-11b)
+- Vecto now measures how noisy the inside of the traced shapes is (JPEG ringing and blocking show
+  up there; clean images are perfectly flat). Noisy inputs get stronger edge smoothing, clean
+  ones take exactly the old path. All 36 clean and small test images stay clean, all 18 JPEGs are
+  detected. JPEG test set: 12% fewer nodes with both changes (27% since 0.4.2), slightly more
+  accurate. Edges of heavily compressed JPEGs still wave a little — a straight-edge fitting stage
+  is the planned fix.
+- `vecto trace --stats` shows the measurement (`noise=… noisy=…`).
+
 ### Engine: cleaner JPEG traces — duplicate colours merged (VEC-08b)
 - JPEG noise could leave two palette entries that end up almost the same colour (#020202 and
   #040404). Each flat shape then traced as a patchwork of near-identical pieces: the Korea flag
