@@ -74,9 +74,15 @@ public static class Tracer
         // Texture guard: on continuous-tone inputs (photos, textured art, old scans) the thin
         // in-between colour bands are real shading, not anti-aliasing fringes, and a high
         // interior noise share is texture, not JPEG ringing — skip both treatments there.
-        p.Textured = NoiseEstimate.InteriorNoiseShare(img, labels, w, h, ct) >= NoiseEstimate.TexturedShare;
+        bool rampLines = false;
+        double preShare = NoiseEstimate.InteriorNoiseShare(img, labels, w, h, ct);
+        p.Textured = preShare >= NoiseEstimate.TexturedShare;
         if (!p.ExactPalette && !p.Textured)
+        {
+            var pre = preShare < NoiseEstimate.NoisyShare ? (int[])labels.Clone() : null;
             Segmenter.RelabelFringe(img, labels, centers, w, h, ct);
+            if (pre != null) rampLines = KeepRampLines(labels, pre, centers);
+        }
         int opaque = 0;
         for (int i = 0; i < labels.Length; i++)
             if (labels[i] >= 0) opaque++;
@@ -115,6 +121,9 @@ public static class Tracer
         progress?.Invoke("curves", 0.6);
         sw.Restart();
         Rgba32? ColorOf(int region) => region < 0 ? null : palette[seg.RegionPalette[region]].Color;
+        // kept ramp lines are 1-2 px wide and low-contrast: sub-pixel refinement can't hold
+        // their staircase, so let the smoothing move them further
+        double smoothClamp = rampLines ? Math.Max(p.SmoothClamp, RampSmoothClamp) : p.SmoothClamp;
         Parallel.ForEach(graph.Chains, new ParallelOptions { CancellationToken = ct }, chain =>
         {
             if (options.CurveFitting)
@@ -152,7 +161,7 @@ public static class Tracer
 
                 void Process(List<int> pins)
                 {
-                    ChainGeometry.SmoothInPlace(chain.Points, chain.Closed, pins, p.SmoothIterations, p.SmoothLambda, p.SmoothClamp);
+                    ChainGeometry.SmoothInPlace(chain.Points, chain.Closed, pins, p.SmoothIterations, p.SmoothLambda, smoothClamp);
                     ChainGeometry.SubpixelRefine(chain.Points, chain.Closed, pins, img,
                         ColorOf(chain.Left), ColorOf(chain.Right), p.SubpixelMaxShift);
                     // light second pass: per-point refinement estimates jitter; smoothing them
@@ -232,6 +241,37 @@ public static class Tracer
     /// palette is recomputed. Exact palettes are verbatim by design and skip this.
     /// </summary>
     const double DisplayMergeThreshold = 0.05;
+
+    const double RampStep = 0.1; // Oklab; palette neighbours this close form a low-contrast ramp
+    const double RampSmoothClamp = 1.0; // px
+
+    /// <summary>
+    /// Undoes fringe moves inside a low-contrast ramp: on small greyscale line art a colour
+    /// with near neighbours on both sides (white / light line / mid grey) is a thin line of
+    /// its own, not anti-aliasing — relabelling it to a neighbour erases the line. Clean
+    /// inputs only (the caller skips this when JPEG ringing builds such ramps).
+    /// Returns whether any line was kept.
+    /// </summary>
+    static bool KeepRampLines(int[] labels, int[] pre, Lab[] centers)
+    {
+        bool kept = false;
+        int n = centers.Length;
+        double t2 = RampStep * RampStep;
+        var near = new int[n];
+        for (int a = 0; a < n; a++)
+            for (int b = 0; b < n; b++)
+                if (a != b && Oklab.DistSq(centers[a], centers[b]) <= t2) near[a]++;
+        for (int i = 0; i < labels.Length; i++)
+        {
+            int from = pre[i], to = labels[i];
+            if (to != from && near[from] >= 2 && Oklab.DistSq(centers[from], centers[to]) <= t2)
+            {
+                labels[i] = from;
+                kept = true;
+            }
+        }
+        return kept;
+    }
 
     static List<PaletteEntry> MergeSimilarDisplays(
         RasterImage img, int[] labels, List<PaletteEntry> palette, int w, int h, int minArea, CancellationToken ct)
