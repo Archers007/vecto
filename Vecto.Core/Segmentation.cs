@@ -61,15 +61,32 @@ internal static class Segmenter
     /// thin slivers of C — too big for <see cref="AbsorbSmallRegions"/> to eat. When the
     /// pixel's Oklab colour lies close to the segment centre[A] → centre[B] (and closer to
     /// that segment than to its own centre), it is really an A/B blend pixel and is
-    /// relabelled to A or B depending on which side of the midpoint it projects to. Reads
-    /// from a snapshot of the labels and writes into <paramref name="labels"/>, so the pass
-    /// is deterministic under Parallel.For.
+    /// relabelled to A or B depending on which side of the sRGB midpoint between the two
+    /// labels' palette centres it projects to: anti-aliasing blends in gamma sRGB, and the
+    /// Oklab midpoint sits near sRGB 100, so an Oklab-side decision sends partly-dark edge
+    /// pixels (sRGB 100–128) to the light side and thin dark lines lose ink. Reads from a
+    /// snapshot of the labels and writes into <paramref name="labels"/>, so the pass is
+    /// deterministic under Parallel.For.
     /// </summary>
     public static void RelabelFringe(RasterImage img, int[] labels, Lab[] centers, int w, int h, CancellationToken ct)
     {
         var px = img.Pixels;
         var src = (int[])labels.Clone();
         float maxR2 = FringeMaxResidual * FringeMaxResidual;
+        // Per-label colour for the A-or-B side decision: the k-means centre converted to
+        // sRGB. Anti-aliasing blends in gamma sRGB and the Oklab midpoint sits near sRGB
+        // 100, so the side is decided by the pixel's projection in sRGB; taking the colour
+        // from the centre (not from the mean of the pixels currently holding the label,
+        // fringe pixels included) keeps the split point at the palette colours themselves.
+        int nc = centers.Length;
+        var rgb = new float[nc * 3];
+        for (int c = 0; c < nc; c++)
+        {
+            LabToRgb(centers[c], out float r, out float g, out float b);
+            rgb[c * 3] = r;
+            rgb[c * 3 + 1] = g;
+            rgb[c * 3 + 2] = b;
+        }
         int span = 2 * FringeRadius + 1;
         Parallel.For(0, h, new ParallelOptions { CancellationToken = ct }, y =>
         {
@@ -107,13 +124,44 @@ internal static class Segmenter
                         if (t <= 0f || t >= 1f) continue;
                         float qx = A.L + t * ux - p.L, qy = A.A + t * uy - p.A, qz = A.B + t * uz - p.B;
                         float r = qx * qx + qy * qy + qz * qz;
-                        if (r < bestR) { bestR = r; bestL = t < 0.5f ? nb[a] : nb[b]; }
+                        if (r < bestR)
+                        {
+                            bestR = r;
+                            // Side decision in gamma sRGB (where anti-aliasing blends);
+                            // falls back to the Oklab projection when the two centres are
+                            // indistinguishable in sRGB.
+                            int ia = nb[a] * 3, ib = nb[b] * 3;
+                            float sx = rgb[ib] - rgb[ia], sy = rgb[ib + 1] - rgb[ia + 1], sz = rgb[ib + 2] - rgb[ia + 2];
+                            float ss = sx * sx + sy * sy + sz * sz;
+                            float ts = t;
+                            if (ss > 1e-6f)
+                                ts = ((px[pi] - rgb[ia]) * sx + (px[pi + 1] - rgb[ia + 1]) * sy + (px[pi + 2] - rgb[ia + 2]) * sz) / ss;
+                            bestL = ts < 0.5f ? nb[a] : nb[b];
+                        }
                     }
                 if (bestL >= 0 && bestR <= maxR2 && bestR < dc)
                     labels[i] = bestL;
             }
         });
     }
+
+    /// <summary>Oklab back to sRGB channels in 0–255 (Björn Ottosson's public-domain inverse).</summary>
+    static void LabToRgb(in Lab lab, out float r, out float g, out float b)
+    {
+        float l_ = lab.L + 0.3963377774f * lab.A + 0.2158037573f * lab.B;
+        float m_ = lab.L - 0.1055613458f * lab.A - 0.0638541728f * lab.B;
+        float s_ = lab.L - 0.0894841775f * lab.A - 1.2914855480f * lab.B;
+        float l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
+        r = 4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s;
+        g = -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s;
+        b = -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s;
+        r = LinearToSrgb(Math.Clamp(r, 0f, 1f)) * 255f;
+        g = LinearToSrgb(Math.Clamp(g, 0f, 1f)) * 255f;
+        b = LinearToSrgb(Math.Clamp(b, 0f, 1f)) * 255f;
+    }
+
+    static float LinearToSrgb(float v) =>
+        v <= 0.0031308f ? v * 12.92f : 1.055f * MathF.Pow(v, 1f / 2.4f) - 0.055f;
 
     /// <summary>
     /// Repeatedly relabels regions smaller than <paramref name="minArea"/> to the neighbor
