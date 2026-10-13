@@ -141,6 +141,8 @@ public static class Tracer
                         corners = kept;
                         Process(corners);
                     }
+                    if (p.Noisy)
+                        ChainGeometry.StraightenRuns(chain.Points, chain.Closed, corners);
                     // pinned lattice corners tilt their adjacent lines by up to ~0.5 px;
                     // move each to the intersection of its refined flank lines instead
                     ChainGeometry.RelocateCorners(chain.Points, chain.Closed, corners,
