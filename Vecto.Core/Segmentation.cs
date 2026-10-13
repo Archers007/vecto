@@ -53,7 +53,7 @@ internal static class Segmenter
     /// <summary>Neighbourhood radius for spotting the two colours a fringe pixel blends.</summary>
     public const int FringeRadius = 1;
     /// <summary>Max Oklab distance from the A→B segment for a pixel to count as a blend.</summary>
-    public const float FringeMaxResidual = 0.05f;
+    public const float FringeMaxResidual = 0.08f;
 
     /// <summary>
     /// Relabels anti-aliasing fringes: a pixel whose colour is a blend of two other palette
