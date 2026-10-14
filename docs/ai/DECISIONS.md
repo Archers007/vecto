@@ -51,3 +51,17 @@ follow the design language of Pixel Point's Toolcraft, which is under a propriet
 "Designer License". **No Toolcraft source code was copied** — Themes/Theme.xaml is original
 WPF written from scratch; color/spacing values are unprotectable facts. Do not paste
 Toolcraft CSS/JS/components into this repo; that would attach their license.
+
+
+## Pending: relicense Vecto from MIT to AGPL-3.0 (owner decision, 2026-10-14)
+
+The owner wants future Vecto versions (from v0.4.4 on) under **AGPL-3.0**, to allow dual licensing:
+AGPL for everyone, plus a paid commercial licence for companies that want Vecto in a closed product.
+Possible because all Vecto code is the owner's own. Releases up to and including v0.4.3 stay MIT forever.
+
+To do (one small commit on dev, then merged with the next release):
+- Replace `LICENSE` with the AGPL-3.0 text; SPDX `AGPL-3.0-only` in project metadata.
+- README: licence badge + licence section ("AGPL-3.0; commercial licences available from the author").
+- Site (site/src) and docs/store/LISTING.md: any "MIT" mention.
+- Check `THIRD-PARTY-NOTICES.md` still fits (ImageSharp community licence for the CLI).
+- CHANGELOG entry for the release that switches.
