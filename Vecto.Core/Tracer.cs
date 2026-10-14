@@ -379,7 +379,7 @@ public static class Tracer
         {
             ImageStyle.Photo => (24, 12, 6),
             ImageStyle.Crisp => (10, 5, 2),
-            _ => (14, 6, 3),
+            _ => (14, 6, 2),
         };
         return new EffectiveParams
         {
