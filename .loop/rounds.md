@@ -74,3 +74,17 @@ Planarity PASS. Kept (2c0a8c6). Round cap (8) reached — loop stops here.
   could NOT be built on this box (ImageSharp 4.1.3 restore hangs); the Core-only
   harness was validated as a faithful substitute.
 - Branch `rick-fidelity-loop` has 3 local commits; NOT pushed (no auth from this box).
+
+## Final reviewer verdict (vs r8 render): NEEDS-WORK
+- Shirt hue shift (mint→aqua): SAME, not fixed — color quantization, untouched by
+  geometry tuning. Samples: source #9fefe6 → trace #ade9f4 (+14R/-6G/+14B).
+- Teeth merging: SAME — grin interior still the messiest region (merged teeth,
+  dark blobs at far-left teeth, red bleed into tooth whites).
+- Contour wobble: IMPROVED — hair/head/chin/hand smooth at 3x; only nit is
+  slightly rounded spike tips.
+- Newly noted: faint vertical banding in shirt interior (sub-region color splits),
+  small skin slivers in eye whites near temple.
+- At 1x: barely distinguishable (only side-by-side shirt hue shows). At 2–3x:
+  unambiguously a trace (teeth region alone gives it away).
+- Biggest remaining issue: teeth/mouth region. Fixing it needs palette/segmentation
+  work (the repo's sub-pixel junction relaxation), not tighter curve fitting.
