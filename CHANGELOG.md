@@ -1,5 +1,19 @@
 # Changelog — Vecto
 
+## Unreleased — fidelity tuning (branch `rick-fidelity-loop`, 2026-10-14)
+Experimental tuning loop against a 507×903 cartoon benchmark (trace → render at 1x →
+pixel-diff vs source; MAE/PSNR/bad-pixel%). Two kept changes, both in
+`Tracer.Resolve` (Vecto.Core):
+- High-detail curve-fit tolerance 0.09 → 0.0225 px² (two steps): edges follow the
+  source more closely, less contour wobble. Single biggest gain.
+- Blended/high minimum region area 3 → 2 px: preserves fine detail (teeth, thin
+  lines) otherwise absorbed.
+- Result: MAE 3.597 → 3.342 (-7.1%), bad-pixel 10.40% → 9.99%, 96 → 91 paths.
+- Tried and rejected: more palette colors, lower palette-merge threshold
+  (0.055 → 0.04 hurt MAE badly despite better bad-pixel%), MinRegionArea → 1,
+  polygon mode, other seeds/styles. Remaining error is dominated by palette
+  quantization (e.g. hue merges), which constant-tweaking doesn't fix.
+
 ## v0.4.3 — 2026-10-13
 
 Tracing quality round. Against 0.4.2 on our test sets (wrong pixels vs the original artwork):
