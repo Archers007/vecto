@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/Vecto_Logo_1024x1024.png" width="120" alt="Vecto logo — a V made of pixels turning into a vector path"/>
+  <img src="assets/readme/featured.jpg" alt="Vecto — Image to Vector: turn PNG and JPG logos, icons and illustrations into clean, editable SVG"/>
 </p>
 
 <h1 align="center">Vecto</h1>
@@ -23,7 +23,7 @@
   <sub><a href="https://apps.microsoft.com/detail/9PM61P4NC8J2"><b>Get it on the Microsoft Store</b></a> for a one-click, auto-updating, signed install that supports development — or build the same open-source app free from the source below.</sub>
 </p>
 
-![Vecto app — side-by-side comparison of a bitmap image and its traced vector version, dark UI](assets/screenshot.png)
+![Vecto in a 24-second loop: the app side by side, sharp at any size, exact lines and circles, offline, what works best, three steps, which Style and how much Detail](assets/readme/slideshow.webp)
 
 **Vecto** is a bitmap-to-vector tracing app (auto-tracer / image vectorizer) in the spirit of
 Vector Magic and Adobe Illustrator's Image Trace — but free, open source, and built around one
