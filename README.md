@@ -23,7 +23,7 @@
   <sub><a href="https://apps.microsoft.com/detail/9PM61P4NC8J2"><b>Get it on the Microsoft Store</b></a> for a one-click, auto-updating, signed install that supports development — or build the same open-source app free from the source below.</sub>
 </p>
 
-![Vecto in a 24-second loop: the app side by side, sharp at any size, exact lines and circles, offline, what works best, three steps, which Style and how much Detail](assets/readme/slideshow.webp)
+![Vecto in a 21-second loop: the app side by side, sharp at any size, exact lines and circles, what works best, three steps, which Style and how much Detail](assets/readme/slideshow.webp)
 
 **Vecto** is a bitmap-to-vector tracing app (auto-tracer / image vectorizer) in the spirit of
 Vector Magic and Adobe Illustrator's Image Trace — but free, open source, and built around one
