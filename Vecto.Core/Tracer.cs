@@ -399,7 +399,7 @@ public static class Tracer
             SubpixelMaxShift = style == ImageStyle.Crisp ? 0.35 : 0.75,
             CornerRelocateMaxShift = 1.5,
             AngleSnapDeg = 1.0,
-            FitToleranceSq = o.Detail switch { DetailLevel.Low => 1.0, DetailLevel.High => 0.09, _ => 0.25 },
+            FitToleranceSq = o.Detail switch { DetailLevel.Low => 1.0, DetailLevel.High => 0.04, _ => 0.25 },
             PolygonEpsilon = o.PolygonEpsilon >= 0 ? o.PolygonEpsilon
                 : o.Detail switch { DetailLevel.Low => 1.6, DetailLevel.High => 0.4, _ => 0.8 },
             Seed = o.Seed,
